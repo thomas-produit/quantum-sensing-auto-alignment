@@ -1,0 +1,112 @@
+INFO:2024-08-11 12:27:26,785:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 12:27:26,785:Main:main:Devices in config: ['thorlabs']
+DEBUG:2024-08-11 12:27:26,786:Drivers:drivers:Loading device drivers for Thorlabs: ...
+DEBUG:2024-08-11 12:27:27,501:Drivers:drivers:Loading device drivers for Thorlabs:[32m[OK][0m
+DEBUG:2024-08-11 12:27:27,501:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 12:27:27,501:Drivers:drivers:	THORLABS:OK
+INFO:2024-08-11 12:28:13,673:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 12:28:13,674:Main:main:Devices in config: ['thorlabs']
+DEBUG:2024-08-11 12:28:13,675:Drivers:drivers:Loading device drivers for Thorlabs: ...
+DEBUG:2024-08-11 12:28:14,378:Drivers:drivers:Loading device drivers for Thorlabs:[32m[OK][0m
+INFO:2024-08-11 12:28:21,929:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 12:28:21,929:Main:main:Devices in config: ['thorlabs']
+DEBUG:2024-08-11 12:28:21,930:Drivers:drivers:Loading device drivers for Thorlabs: ...
+DEBUG:2024-08-11 12:28:22,303:Drivers:drivers:Loading device drivers for Thorlabs:[93m[FAIL][0m
+INFO:2024-08-11 12:28:58,648:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 12:28:58,648:Main:main:Devices in config: ['thorlabs']
+DEBUG:2024-08-11 12:28:58,649:Drivers:drivers:Loading device drivers for Thorlabs: ...
+DEBUG:2024-08-11 12:28:59,001:Drivers:drivers:Loading device drivers for Thorlabs:[93m[FAIL][0m
+DEBUG:2024-08-11 12:28:59,001:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 12:28:59,001:Drivers:drivers:	THORLABS: ("cannot import name 'Thorlabsss' from 'pylablib.devices' (/home/aaron/mambaforge/envs/ASTAR_AA/lib/python3.11/site-packages/pylablib/devices/__init__.py)",)
+INFO:2024-08-11 14:16:04,920:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 14:16:04,920:Main:main:Devices in config: ['thorlabs', 'zaber']
+DEBUG:2024-08-11 14:16:04,922:Drivers:drivers:Loading device drivers for thorlabs: ...
+DEBUG:2024-08-11 14:16:05,932:Drivers:drivers:Loading device drivers for thorlabs:[32m[OK][0m
+DEBUG:2024-08-11 14:16:05,932:Drivers:drivers:Loading device drivers for zaber: ...
+DEBUG:2024-08-11 14:16:05,932:Drivers:drivers:Loading device drivers for zaber:[32m[OK][0m
+DEBUG:2024-08-11 14:16:05,932:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 14:16:05,932:Drivers:drivers:	THORLABS:OK
+DEBUG:2024-08-11 14:16:05,932:Drivers:drivers:	ZABER:OK
+INFO:2024-08-11 14:16:39,372:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 14:16:39,372:Main:main:Devices in config: ['thorlabs', 'zaber']
+DEBUG:2024-08-11 14:16:39,374:Drivers:drivers:Loading device drivers for thorlabs: ...
+DEBUG:2024-08-11 14:16:40,068:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-11 14:16:40,068:Drivers:drivers:Loading device drivers for zaber: ...
+DEBUG:2024-08-11 14:16:40,068:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-08-11 14:16:40,068:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 14:16:40,068:Drivers:drivers:	THORLABS:OK
+DEBUG:2024-08-11 14:16:40,068:Drivers:drivers:	ZABER:OK
+INFO:2024-08-11 14:17:50,882:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 14:17:50,882:Main:main:Devices in config: ['thorlabs', 'zaber']
+DEBUG:2024-08-11 14:17:51,569:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-11 14:17:51,676:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-08-11 14:17:51,677:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 14:17:51,677:Drivers:drivers:	THORLABS:OK
+DEBUG:2024-08-11 14:17:51,677:Drivers:drivers:	ZABER:OK
+INFO:2024-08-11 14:18:00,691:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 14:18:00,691:Main:main:Devices in config: ['thorlabs', 'zaber']
+DEBUG:2024-08-11 14:18:01,375:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-11 14:18:01,375:Drivers:drivers:Loading device drivers for zaber:[93m	[FAIL][0m
+DEBUG:2024-08-11 14:18:01,375:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 14:18:01,376:Drivers:drivers:	THORLABS:OK
+DEBUG:2024-08-11 14:18:01,376:Drivers:drivers:	ZABER: ("No module named 'zaber_motionsss'",)
+INFO:2024-08-11 14:20:14,836:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 14:20:14,836:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon']
+DEBUG:2024-08-11 14:20:15,576:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-11 14:20:15,686:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-08-11 14:20:15,686:Drivers:drivers:Loading device drivers for xeryon:[93m	[FAIL][0m
+DEBUG:2024-08-11 14:20:15,686:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 14:20:15,686:Drivers:drivers:	THORLABS:OK
+DEBUG:2024-08-11 14:20:15,687:Drivers:drivers:	ZABER:OK
+DEBUG:2024-08-11 14:20:15,687:Drivers:drivers:	XERYON: ("No module named 'driver_libs'",)
+INFO:2024-08-11 14:20:23,864:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 14:20:23,864:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon']
+DEBUG:2024-08-11 14:20:24,565:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-11 14:20:24,672:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-08-11 14:20:24,680:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-08-11 14:20:24,680:Drivers:drivers:Device stats: -- 
+DEBUG:2024-08-11 14:20:24,680:Drivers:drivers:	THORLABS:OK
+DEBUG:2024-08-11 14:20:24,680:Drivers:drivers:	ZABER:OK
+DEBUG:2024-08-11 14:20:24,680:Drivers:drivers:	XERYON:OK
+INFO:2024-08-11 20:08:05,229:Main:main:Specified main.py as driver test.
+INFO:2024-08-11 20:08:05,230:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-08-11 20:08:06,484:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-11 20:08:06,696:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-08-11 20:08:06,697:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-08-11 20:08:06,698:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-08-11 20:08:06,708:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-08-11 20:08:06,708:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-08-11 20:08:06,708:Drivers:drivers:Device stats: -- 
+INFO:2024-08-11 20:08:06,709:Drivers:drivers:	THORLABS:OK
+INFO:2024-08-11 20:08:06,709:Drivers:drivers:	ZABER:OK
+INFO:2024-08-11 20:08:06,709:Drivers:drivers:	XERYON:OK
+INFO:2024-08-11 20:08:06,709:Drivers:drivers:	JENA:OK
+INFO:2024-08-11 20:08:06,709:Drivers:drivers:	TC038:OK
+INFO:2024-08-14 14:03:13,298:Main:main:Specified main.py as driver test.
+INFO:2024-08-14 14:03:13,298:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-08-14 14:03:14,505:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-14 14:03:14,712:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-08-14 14:03:14,714:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-08-14 14:03:14,714:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-08-14 14:03:14,725:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-08-14 14:03:14,727:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-08-14 14:03:14,727:Drivers:drivers:Device stats: -- 
+INFO:2024-08-14 14:03:14,727:Drivers:drivers:	THORLABS:OK
+INFO:2024-08-14 14:03:14,727:Drivers:drivers:	ZABER:OK
+INFO:2024-08-14 14:03:14,727:Drivers:drivers:	XERYON:OK
+INFO:2024-08-14 14:03:14,727:Drivers:drivers:	JENA:OK
+INFO:2024-08-14 14:03:14,727:Drivers:drivers:	TC038:OK
+INFO:2024-08-14 15:07:57,478:Main:main:Specified main.py as driver test.
+INFO:2024-08-14 15:07:57,478:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-08-14 15:07:58,765:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-08-14 15:07:58,976:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-08-14 15:07:58,978:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-08-14 15:07:58,978:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-08-14 15:07:58,989:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-08-14 15:07:58,991:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-08-14 15:07:58,991:Drivers:drivers:Device stats: -- 
+INFO:2024-08-14 15:07:58,991:Drivers:drivers:	THORLABS:OK
+INFO:2024-08-14 15:07:58,991:Drivers:drivers:	ZABER:OK
+INFO:2024-08-14 15:07:58,991:Drivers:drivers:	XERYON:OK
+INFO:2024-08-14 15:07:58,991:Drivers:drivers:	JENA:OK
+INFO:2024-08-14 15:07:58,991:Drivers:drivers:	TC038:OK
