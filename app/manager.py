@@ -11,7 +11,9 @@ import session
 from threading import Thread, Event
 from queue import Queue, Empty
 from time import sleep
-
+import numpy as np
+from datetime import datetime
+import os
 
 class Manager:
     def __init__(self, server_instance):
@@ -33,9 +35,13 @@ class Manager:
         self.learner_ids = None
         self.run_queue = Queue()
 
+        # used to handle the final saving event
+        self.save_event = Event()
+
         # internal memory
         self._memory = {}
         self._optimisation_config = {}
+        self._heuristic_tracker = None
         self._initialise_memory()
         self.interface = None
         self.interface_args = None
@@ -90,7 +96,8 @@ class Manager:
         config_dict = {'bound_restriction': self._optimisation_config['bound_restriction'],
                        'learner_number': self._optimisation_config['learner_number'],
                        'bounds': self._optimisation_config['bounds'],
-                       'initial_count': self._optimisation_config['initial_count']
+                       'initial_count': self._optimisation_config['initial_count'],
+                       'data_dir': self._optimisation_config['data_dir']
                        }
         dict_string = json.dumps(config_dict)
         spooler_fifo.send(dict_string)
@@ -170,6 +177,8 @@ class Manager:
                     self.learner_ids = json.loads(data[4:])
                 except json.JSONDecodeError:
                     self.log.error('Couldn\'t get learner IDs.')
+            elif data == '<SAVE>':
+                self._save_models(spooler_fifo)
 
             # send any queued data
             try:
@@ -192,6 +201,32 @@ class Manager:
         :return:
         """
         self.log.info('Initialising optimisation ...')
+
+        # throw an error if the options are not a dictionary
+        if type(options) is not dict:
+            raise TypeError(f'Expected a dictionary, instead received type:<{type(options)}>.')
+
+        self.log.debug('Checking if data directory exists')
+        data_loc = options.get('data_directory', './data').strip('/')
+        if not os.path.exists(data_loc):
+            try:
+                os.mkdir(data_loc)
+                self.log.info(f'Created data directory @\'{data_loc}\'.')
+            except PermissionError as e:
+                self.log.warning(f'Could not create data directory @\'{data_loc}\'. Defaulting to ./data')
+                self.log.debug(f'Data directory error {e.args}.')
+                data_loc = './data'
+                if not os.path.exists(data_loc):
+                    os.mkdir(data_loc)
+
+        # check we have permission to write
+        write_access = os.access(data_loc, os.W_OK)
+        if not write_access:
+            self.log.error(f'Write permissions not available for {data_loc}. Specify new location.')
+            return 1
+
+        # save the location for later use
+        self._optimisation_config['data_dir'] = data_loc
 
         # grab all the values provided by the user for configuration
         config_keys = self._optimisation_config.keys()
@@ -217,6 +252,8 @@ class Manager:
             self.log.info(f"    -Parameters: {len(self._optimisation_config['bounds'])}")
             for key, value in self._optimisation_config.items():
                 self.log.info(f'    -{key}: {value}')
+
+            self._memory['bounds'] = self._optimisation_config['bounds']
 
             # start the connections
             self._initialise_connections()
@@ -377,7 +414,8 @@ class Manager:
     def _update_spooler(self, send_fifo, recv_fifo):
         # update the parameters to the spooler
         data_dict = {'parameters': self._memory['parameters'],
-                     'costs': self._memory['costs']}
+                     'costs': self._memory['costs'],
+                     'bounds': self._memory['bounds']}
         data_string = json.dumps(data_dict)
         send_fifo.put('<UPDATE>')
         while not self.manager_halt.is_set():
@@ -389,6 +427,35 @@ class Manager:
             except Empty:
                 pass
 
+    def _bound_restrict(self, send_fifo, recv_fifo, restrict, best_point=None):
+        # get the new bounds to send
+        new_bounds = []
+        if restrict:
+            factor = self._optimisation_config['bound_restriction']
+            new_bound_span = [(b[1] - b[0]) * factor for b in self._memory['bounds']]
+            for (bmin, bmax), span, param_value in zip(self._memory['bounds'], new_bound_span, best_point):
+                new_bmin = max(param_value - (span / 2), bmin)
+                new_bmax = min(param_value + (span / 2), bmax)
+                new_bounds.append((new_bmin, new_bmax))
+        else:
+            new_bounds = self._memory['bounds']
+
+        # update the heuristics as well
+        self._heuristic_tracker.update_bounds(new_bounds)
+
+        send_fifo.put('<BR>')
+        while not self.manager_halt.is_set():
+            try:
+                data = recv_fifo.get(block=True, timeout=0.1)
+                if data == '<UR>':
+                    data_dict = {'bounds': new_bounds}
+                    send_fifo.put(json.dumps(data_dict))
+                    break
+            except Empty:
+                pass
+
+        self.log.debug('Updated spooler bounds.')
+
     def _optimise(self):
         # communicate across comms
         _, send_fifo = self.threads['spooler']
@@ -399,7 +466,13 @@ class Manager:
             state = recv_fifo.get(True, timeout=10)
             self.log.debug(f'Learner {lid} returned state: {state}')
 
+        # Variables for keeping track of the heuristics
+        runs_since_improvement = 0
+        bounds_restricted = False
+
+        # -----------------------------------------------
         # do the sampling first
+        # -----------------------------------------------
         for run in range(self._optimisation_config['initial_count']):
             self._memory['run_number'] = run + 1
 
@@ -434,6 +507,18 @@ class Manager:
             self._memory['run_order'].append('SL1')
             self.log.info(f"Sample {self._memory['run_number']} - cost: {cost}")
 
+            # update all the running bests
+            if self._memory['best_cost'] is None:
+                self._memory['best_cost'] = cost
+                self._memory['best_parameters'] = next_params
+            elif cost < self._memory['best_cost']:
+                self.log.info(f'New best cost found: {cost}', extra={'colour': 4})
+                self._memory['best_cost'] = cost
+                self._memory['best_parameters'] = next_params
+
+        # feedback the best so far
+        self.log.info(f"Sampling finished. Best cost observed: {self._memory['best_cost']}")
+
         # update the spooler parameters
         self._update_spooler(send_fifo, recv_fifo)
 
@@ -442,6 +527,16 @@ class Manager:
 
         max_runs = self._optimisation_config['halt_number'] + self._optimisation_config['initial_count']
         start = self._optimisation_config['initial_count']
+
+        # define the heuristic tracker for bumping
+        self._heuristic_tracker = HeuristicTracker(self._memory['bounds'],
+                                                   self._memory['best_parameters'],
+                                                   self.log)
+        self._heuristic_tracker.last_params = np.array(self._memory['best_parameters'])
+
+        # -----------------------------------------------
+        # Neural net time
+        # -----------------------------------------------
         for run in range(start, max_runs):
             self._memory['run_number'] = run + 1
 
@@ -466,28 +561,94 @@ class Manager:
                 self.log.warning('Received no parameters. Skipping.')
                 continue
 
+            # bump the parameters if necessary
+            next_params = self._heuristic_tracker.modify_parameters(next_params)
+
             # call the interface to test
             cost = self.interface.run_parameters(next_params, args=self.interface_args)
+
+            # update all the running bests
+            if cost < self._memory['best_cost']:
+                self.log.info(f'New best cost found: {cost}', extra={'colour': 4})
+                self._memory['best_cost'] = cost
+                self._memory['best_parameters'] = next_params
+                runs_since_improvement = 0
+                self._heuristic_tracker.update_best(next_params)
+            else:
+                runs_since_improvement += 1
+
+            # kick off a local on the next iteration if we need to
+            if runs_since_improvement >= 10:
+                runs_since_improvement = 0
+
+                # restrict the bounds to do a local search
+                if not bounds_restricted:
+                    self.log.info('Restricting bounds for local search.')
+                    self._bound_restrict(send_fifo, recv_fifo, True, self._memory['best_parameters'])
+                else:
+                    self.log.info('Returning bounds for exploration.')
+                    self._bound_restrict(send_fifo, recv_fifo, False, None)
+
+                # flip the boolean
+                bounds_restricted = not bounds_restricted
 
             # update and log
             self._memory['costs'].append(cost)
             self._memory['parameters'].append(next_params)
-            self._memory['run_order'].append('SL1')
+            self._memory['run_order'].append(lid)
             self.log.info(f"Run {self._memory['run_number']} / {max_runs} - cost: {cost}")
 
             self._update_spooler(send_fifo, recv_fifo)
             send_fifo.put(f'<SR:{lid}>')
 
-        self.log.warning('Finished Optimising')
-        #
-        #
-        # # start looping for the total number of runs
-        # for run in range(self._optimisation_config['halt_number']):
-        #     self._memory['run_number'] = run + 1
+        self.log.info('Finished Optimising',  extra={'colour': 4})
 
+    def _save_models(self, spooler_fifo):
+        while not self.manager_halt.is_set():
+            try:
+                data = spooler_fifo.read(block=True, timeout=0.1)
+                if data == '<SAVE>':
+                    self.log.debug('Spooler ready to send model info ...')
+                elif '<LD>' in data:
+                    key, data = data.split('=')
+                    self.log.debug(f'Learner {key} sent: {data}')
+                elif data == '<FIN>':
+                    self.log.debug('All learner data collected.')
+                    break
+            except Empty:
+                pass
 
+        # clear the event so we can exit
+        self.save_event.set()
+
+    def save(self):
+        datetime_str = datetime.now().strftime('%Y%m%d_%H-%M-%S')
+        save_loc = self._optimisation_config.get('data_dir', '/NOT_SPECIFIED/')
+        self.log.info('Saving data ... ', extra={'color': 2})
+
+        # create a new_dir
+        new_dir = f'{save_loc}/{datetime_str}_optim'
+        os.mkdir(new_dir)
+
+        # save the run specific data
+        self.log.debug('Saving run data ...', extra={'color': 2})
+        with open(f'{new_dir}/data_{datetime_str}.json', 'w') as f:
+            json.dump(self._memory, f)
+
+        # get the FIFO to communicate with the spooler
+        _, manager_fifo = self.threads['spooler']
+        self.log.info('Getting model data ...')
+        manager_fifo.put('<SAVE>')
+
+        # wait for the saving to finish
+        while not self.save_event.is_set():
+            sleep(0.1)
+
+        self.log.info('Saving models complete.')
 
     def close(self):
+        self.save()
+
         self.server.close()
 
         self.manager_halt.set()
@@ -497,3 +658,89 @@ class Manager:
                 thread.join()
 
         self.log.info('Manager closed.')
+
+
+class HeuristicTracker:
+    def __init__(self, bounds, best_params, log):
+        mins, maxs = list(zip(*bounds))
+        self.bounds = bounds
+        self.scale_func = lambda X: (np.array(X) - np.array(mins)) / (np.array(maxs) - np.array(mins))
+        self.num_params = len(bounds)
+
+        self.last_params = None
+        self.best_params = best_params
+
+        # get the bump starts for each parameter
+        self.spans = (np.array(maxs) - np.array(mins))
+        ooms = np.round(np.log(self.spans) / np.log(10))
+        self.bump_starts = 10 ** (ooms - 3)
+        self.current_bumps = np.array([bp for bp in self.bump_starts])
+
+        self.bump_incrementer = 0
+        self.log = log
+
+        self.runs_without_increase = 0
+
+    def modify_parameters(self, next_params):
+        next_params = np.array(next_params)
+        distance = np.sum(
+            np.square(self.scale_func(self.best_params) - self.scale_func(next_params))) / self.num_params
+        distance_last = np.sum(
+            np.square(self.scale_func(self.last_params) - self.scale_func(next_params))) / self.num_params
+
+        bumped = False
+        self.last_params = next_params
+        self.runs_without_increase += 1
+
+        if self.runs_without_increase > 3 and (distance < 0.03 or distance_last < 0.05):
+            bumped = True
+
+            # increment the bump if we need to
+            self.runs_without_increase = 0
+            if self.bump_incrementer > 3:
+                self.bump_incrementer = 0
+
+                # reset the bump scale if it's too big
+                if self.current_bumps[0] >= (self.bump_starts[0] * 100):
+                    self.log.debug('Resetting bump scale.')
+                    self.current_bumps = np.array([bp for bp in self.bump_starts])
+                else:
+                    self.current_bumps *= 2
+            else:
+                self.bump_incrementer += 1
+
+            # Method 1: bump the parameters randomly
+            offset = self.spans * np.random.uniform(-0.1, 0.1, 1)
+            polarity_mask = np.random.randint(0, 2, self.num_params)
+            polarity_mask[polarity_mask == 0] = -1
+
+            self.log.info(f'Applying bump: {self.current_bumps} - {offset}',  extra={'colour': 4})
+            next_params += np.multiply(polarity_mask, self.current_bumps + offset)
+
+            # TODO: Add other methods
+
+        next_params = self.clip_next(next_params)
+        return list(next_params)
+
+    def update_bounds(self, bounds):
+        mins, maxs = list(zip(*bounds))
+        self.bounds = bounds
+        self.scale_func = lambda X: (np.array(X) - np.array(mins)) / (np.array(maxs) - np.array(mins))
+        self.num_params = len(bounds)
+
+        # get the bump starts for each parameter
+        self.spans = (np.array(maxs) - np.array(mins))
+        ooms = np.round(np.log(self.spans) / np.log(10))
+        self.bump_starts = 10 ** (ooms - 3)
+        self.current_bumps = np.array([bp for bp in self.bump_starts])
+
+    def update_best(self, best_params):
+        self.runs_without_increase = 0
+        self.best_params = best_params
+
+    def clip_next(self, next_params):
+        for idx, ((bmin, bmax), param) in enumerate(zip(self.bounds, next_params)):
+            next_params[idx] = max(param, bmin)
+            next_params[idx] = min(param, bmax)
+
+        return next_params

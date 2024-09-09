@@ -60,7 +60,10 @@ if __name__ == '__main__':
 
     elif bool(args.learner):
         import os
-        print(os.getpid())
+        import psutil
+        pid = os.getpid()
+        p = psutil.Process(os.getpid())
+
         from app.learner import NeuralNetLearner, SamplingLearner
         session.display_log_handler = StdOutLogHandler()
 
@@ -71,6 +74,7 @@ if __name__ == '__main__':
             sl = SamplingLearner(f'SL{args.id}')
             sl.initialise()
         else:
+            p.cpu_affinity([int(args.id)])
             nnl = NeuralNetLearner(f'NN{args.id}')
             nnl.initialise()
 
@@ -94,10 +98,10 @@ if __name__ == '__main__':
         # declare the manager to run the optimisation
         manager = Manager(server)
         optimisation_config = {'bound_restriction': '0.05',
-                               'initial_count': '3',
-                               'learner_number': '2',
-                               'halt_number': '100',
-                               'bounds': tuple([(3, 12)]*5),
+                               'initial_count': '50',
+                               'learner_number': '5',
+                               'halt_number': '500',
+                               'bounds': tuple([(-32, 32)]*10),
                                'interface': TestInterface(),
                                'interface_args': 'ackley'
                                }

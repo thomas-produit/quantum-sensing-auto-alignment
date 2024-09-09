@@ -28,6 +28,8 @@ class TestInterface(BaseInterface):
         params = np.array(params)
         if args == 'ackley':
             val = self.ackley_func(params)
+        elif args == 'parabola':
+            val = np.sum(np.square(params))
         else:
             raise RuntimeError(f'Parameter for function {args} does not match any function.')
         return val

@@ -4,6 +4,6 @@
   "tcp_address": "127.0.0.1",
   "tcp_port": 57821,
   "spooler_tcp_port": 57822,
-  "model_epochs": 200,
+  "model_epochs": 400,
   "devices": ["thorlabs", "zaber", "xeryon", "jena", "tc038"]
 }

@@ -44,6 +44,12 @@ class DisplayLogHandler(logging.Handler):
         elif record.levelname == 'WARNING':
             text_colour = 2
 
+        # try to override the colour if we can
+        try:
+            text_colour = record.colour
+        except AttributeError as e:
+            pass
+
         # handle the display of text to the terminal
         self.display_func(f'[{record.levelname}][{datetime.fromtimestamp(record.created).ctime()}]'
                           f'[{record.name}] {record.msg}', colour=text_colour)

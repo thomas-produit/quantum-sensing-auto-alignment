@@ -56,6 +56,7 @@ class BaseLearner:
         self._register_command('<TRAIN>', self.train)
         self._register_command('<MIN>', self.minimise)
         self._register_command('<READY>', self.ready)
+        self._register_command('<SAVE>', self.get_model_params)
 
 
     def _register_command(self, cmd_flag, function):
@@ -127,11 +128,13 @@ class BaseLearner:
         if data_dictionary is not None:
             params = data_dictionary.get('parameters', '[[Dictionary Failure]]')
             costs = data_dictionary.get('costs', '[[Dictionary Failure]]')
+            bounds = data_dictionary.get('bounds', '[[Dictionary Failure]]')
 
             # update the parameters
             self._memory['costs'] = costs
             self._memory['parameters'] = params
-            self.log.debug('Updated parameter and cost values.')
+            self._memory['bounds'] = bounds
+            self.log.debug('Updated parameters, costs and bounds.')
             self._state = LearnerState.TRAIN
             self.connection_fifo.send('<CA>')
 
@@ -165,6 +168,14 @@ class BaseLearner:
         else:
             self.connection_fifo.send('<ERROR>')
 
+    def get_model_params(self):
+        """
+        Construct the model parameters to be returned to the spooler. Needs to return a serialised string for
+        transmission.
+        :return:
+        """
+        self.connection_fifo.send(json.dumps({'data': None}))
+
     def train(self):
         pass
 
@@ -184,9 +195,17 @@ class CustomCallback(tf.keras.callbacks.Callback):
         super().__init__()
         self.log = log
 
-    def on_epoch_begin(self, epoch, logs=None):
+    def on_epoch_end(self, epoch, logs=None):
         if not epoch % 10:
-            self.log.info(f'Training epoch: {epoch}')
+            self.log.info(f"Training epoch: {epoch}: Loss:{logs.get('loss', 'N/A')}")
+
+
+class MinimiseCallback:
+    def __init__(self, log):
+        self.log = log
+
+    def minimise_callback(self, intermediate_result):
+        self.log.info(f'F(x): {intermediate_result.fun}')
 
 
 class NeuralNetLearner(BaseLearner):
@@ -238,15 +257,15 @@ class NeuralNetLearner(BaseLearner):
         new_layer = input_layer
         for _ in range(n_layers):
             new_layer = tf.keras.layers.Dense(neurons,
-                                              activation=tf.nn.swish,
-                                              activity_regularizer=tf.keras.regularizers.L2(1e-8),
+                                              activation=tf.keras.activations.gelu,
+                                              activity_regularizer=tf.keras.regularizers.L2(1e-10),
                                               kernel_initializer='he_normal',
                                               bias_initializer='ones'
                                               )(new_layer)
 
         # output layer
         output_layer = tf.keras.layers.Dense(1,
-                                             activity_regularizer=tf.keras.regularizers.L2(1e-8))(new_layer)
+                                             activity_regularizer=tf.keras.regularizers.L2(1e-10))(new_layer)
 
         self.model = tf.keras.Model(inputs=input_layer, outputs=output_layer)
         self.model.compile(optimizer='adam', loss='mse', metrics=['mae'])
@@ -282,7 +301,6 @@ class NeuralNetLearner(BaseLearner):
             self.model_callbacks[0] = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=10)
         else:
             self.model_callbacks[0] = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=50)
-            self.model_first_training = False
 
         # scale the inputs
         scaled_params = self.input_scaler.transform(params)
@@ -300,36 +318,59 @@ class NeuralNetLearner(BaseLearner):
         self._memory['loss_history'].append(history.history['loss'][-1])
         self._state = LearnerState.MINIMISING
 
+        self.model_first_training = False
+
     def minimise(self):
         self._state = LearnerState.BUSY
         self.worker = Thread(target=self.minimise_function)
         self.worker.start()
 
     def minimise_function(self):
-        # define a new parallel query
-        # pq = ParallelQuery(self.model, bounds=self._memory['bounds'], log=self.log, input_scaler=self.input_scaler)
-        self.log.info('Starting minimisation ... ')
-        # results = pq.run_optim()
-        # sorted_results = sorted(results, key=lambda X: X[1])
-        # self.log.debug(f'New params: {sorted_results[0][0]}.')
-        # self._next_params_queue.put(sorted_results[0][0])
+        def min_function(X):
+            scaled_in = self.input_scaler.transform(X.reshape(1, -1))
+            y = self.model(scaled_in)
+            return y
 
-        x0 = np.zeros(len(self._memory['bounds']))
+        def jac_function(X):
+            scaled_in = self.input_scaler.transform(X.reshape(1, -1))
+            delta = tf.Variable([0.0]*X.size)
+            with tf.GradientTape() as tape:
+                y = self.model(scaled_in + delta)
+
+            jac = np.array(tape.jacobian(y, delta), dtype=np.float64).squeeze()
+
+            return jac
+
+        callback = MinimiseCallback(self.log)
+
+        rough_N = 100000
+        param_N = len(self._memory['bounds'])
+        scan_N = int(round(rough_N ** (1/param_N)))
+
+        grid_points = []
         for idx, (bmin, bmax) in enumerate(self._memory['bounds']):
-            x0[idx] = np.random.uniform(bmin, bmax, 1).squeeze()
+            grid_points.append(np.linspace(bmin, bmax, scan_N))
 
-        def min_func(X):
-            X_scale = self.input_scaler.transform(X.reshape(1, -1))
-            return self.model(X_scale)
+        sweep_arr = np.meshgrid(*grid_points, indexing='ij')
+        sample_length = sweep_arr[0].size
+        input_arr = np.zeros((sample_length, param_N))
 
-        result = so.minimize(min_func, x0,
+        for idx, sa in enumerate(sweep_arr):
+            input_arr[:, idx] = sa.flatten()
+
+        outputs = self.model(self.input_scaler.transform(input_arr))
+        outputs_min_idx = np.argmin(outputs)
+        X0_min = input_arr[outputs_min_idx]
+
+        self.log.debug(f'Best f:{round(np.min(outputs), 2)} @ {np.round(X0_min, 2)}')
+
+        result = so.minimize(min_function, X0_min,
                              bounds=self._memory['bounds'],
-                             options={'eps': 1e-3, })
+                             jac=jac_function,
+                             callback=callback.minimise_callback)
 
         self.log.debug(f'New params: {result.x}.')
         self._next_params_queue.put(result.x)
-
-
 
         self._state = LearnerState.PREDICT
 
@@ -337,6 +378,12 @@ class NeuralNetLearner(BaseLearner):
         next_params = self._next_params_queue.get()
         self._state = LearnerState.PREDICTED
         self.connection_fifo.send(json.dumps({'params': list(next_params)}))
+
+    def get_model_params(self):
+        # get all the weights to serlialise
+        weights = self.model.weights
+        layer_counter = 0
+        return json.dumps({'data': None})
 
 
 class SamplingLearner(BaseLearner):
@@ -410,9 +457,10 @@ class SamplingLearner(BaseLearner):
         self.log.debug(f'Step sizes: {step_sizes}')
 
         # for each step expand the bounds around the center and sample
-        sample_points = [[] for x in range(len(centers))]
+        all_points = []
         for i in range(steps):
             new_bounds = []
+            pts = []            # track the points this iteration
 
             # find the new 'doughnut' bounds corresponding to (min_l, max_l) and (min_u, max_u)
             for idx, c in enumerate(centers):
@@ -422,102 +470,43 @@ class SamplingLearner(BaseLearner):
                 min_u = c + (step_sizes[idx] * i)
                 max_u = c + (step_sizes[idx] * (i + 1))
 
-                new_bounds.append([min_l, max_l, min_u, max_u])
+                # construct bounds in the form (reject_bounds),(sample_bounds)
+                new_bounds.append([(min_l, min_u), (max_l, max_u)])
 
-            # for the new bounds switch randomly between the upper and lower bound
-            for idx, bounds in enumerate(new_bounds):
-                for itern in range(points_per_iter):
-                    if np.random.rand() > 0.5:
-                        point = np.random.uniform(bounds[2], bounds[3], 1)
+            # keep going till we have all the points
+            while len(pts) < points_per_iter:
+                new_pt = []
+                reject_point = []
+
+                # sample and reject if necessary
+                for reject, bnds in new_bounds:
+                    new_val = np.random.uniform(bnds[0], bnds[1], 1)[0]
+                    new_pt.append(new_val)
+
+                    # flip the reject bit if we are in the bounds
+                    if reject[0] < new_val < reject[1]:
+                        reject_point.append(1)
                     else:
-                        point = np.random.uniform(bounds[0], bounds[1], 1)
+                        reject_point.append(0)
 
-                    sample_points[idx].append(point)
+                # if all bits are flipped ignore the point
+                if np.sum(reject_point) != n_params:
+                    pts.append(new_pt)
+                    all_points.append(new_pt)
 
-        sample_points = np.array(sample_points).squeeze()
+        sample_points = np.array(all_points)
         self.log.debug(f'Generated samples with shape: {sample_points.shape}')
 
-        if sample_points.shape[1] > initial_count:
+        if sample_points.shape[0] > initial_count:
             sample_points = sample_points[:, :initial_count]
             self.log.debug('Stripped samples to match initial_count')
 
-        if sample_points.shape[1] < initial_count:
+        if sample_points.shape[0] < initial_count:
             self.log.warning('Samples generated was less than the initial count.')
 
-        self.log.info(f'Generated sample points with shape: {sample_points.T.shape}')
-        return sample_points.T.tolist()
+        self.log.info(f'Generated sample points with shape: {sample_points.shape}')
+        return sample_points.tolist()
 
     def _get_next_parameters(self):
         self.connection_fifo.send(json.dumps({'params': self.sample_points[self.sample_iterator]}))
         self.sample_iterator += 1
-
-
-class ParallelQuery:
-    def __init__(self, model, bounds, log, input_scaler):
-        self.model = model
-        self.N_threads = 5
-        self.pool = ThreadPool(self.N_threads)
-        # pairs of pipes (host, client)
-        self.pipes = [Pipe() for _ in range(self.N_threads)]
-        self.done = [Event() for _ in range(self.N_threads)]
-        self.bounds = bounds
-        self.evaluation_thread = Thread(target=self.min_function)
-        self.evaluation_halt = Event()
-        self.log = log
-        self.input_scaler = input_scaler
-
-    def comm_func(self, X, conn):
-        conn.send(X)
-        value = conn.recv()
-        return value
-
-    def target_func(self, id):
-        _, conn = self.pipes[id]
-        x0 = np.zeros(len(self.bounds))
-        for idx, (bmin, bmax) in enumerate(self.bounds):
-            x0[idx] = np.random.uniform(bmin, bmax, 1).squeeze()
-        result = so.minimize(lambda X: self.comm_func(X, conn), x0,
-                             bounds=self.bounds,
-                             options={'eps': 1e-3,},
-                             callback=lambda z: z)
-        print(result)
-        self.done[id].set()
-        while True:
-            conn.send(0)
-            val = conn.recv()
-            if val is None:
-                break
-
-        return result.x, result.fun
-
-    def min_function(self):
-        iter = 0
-        while not self.evaluation_halt.is_set():
-            values = np.zeros(self.N_threads*len(self.bounds)).reshape(self.N_threads, len(self.bounds))
-            for idx, (conn, _) in enumerate(self.pipes):
-                X = conn.recv()
-                values[idx, :] = np.array(X)
-
-            values = self.input_scaler.transform(values)
-
-            preds = self.model.predict(values)
-            iter += 1
-            for idx, (conn, _) in enumerate(self.pipes):
-                conn.send(preds[idx])
-
-            counter = 0
-            for e in self.done:
-                if e.is_set():
-                    counter += 1
-            if counter >= self.N_threads:
-                break
-
-        for idx, (conn, _) in enumerate(self.pipes):
-            conn.send(None)
-
-    def run_optim(self):
-        self.evaluation_thread.start()
-        result = self.pool.map(self.target_func, range(self.N_threads))
-        self.evaluation_halt.set()
-        self.evaluation_thread.join()
-        return result

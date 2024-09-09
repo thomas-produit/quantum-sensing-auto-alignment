@@ -39,6 +39,9 @@ class Spooler:
 
         # create a thread for asynchronous training
         self._asynch_prediction_thread = Thread(target=self._asynch_prediction)
+        self._asynch_pause = Event()
+        self._asynch_waiting = Event()
+        self._asynch_waiting.set()
 
         # configuration dictionary for the spooler
         self._spooler_config = {'learner_number': None}
@@ -128,6 +131,10 @@ class Spooler:
                     self._update_params()
                 elif '<SR:' in data:
                     self._set_ready(data)
+                elif data == '<BR>':
+                    self._update_bounds()
+                elif data == '<SAVE>':
+                    self._save()
 
             except Empty:
                 pass
@@ -144,6 +151,14 @@ class Spooler:
             self._memory['parameters'] = data_dict.get('parameters', [])
             self._memory['costs'] = data_dict.get('costs', [])
             self._memory_lock.release()
+
+    def _update_bounds(self):
+        self.connection_fifo.send('<UR>')
+        data_dict = self._read_json()
+
+        if data_dict is not None:
+            self._spooler_config['bounds'] = data_dict.get('bounds', self._spooler_config['bounds'])
+            self.log.debug(f"Got updated bounds from manager. {self._spooler_config['bounds']}")
 
     def _read_json(self):
         """
@@ -180,7 +195,7 @@ class Spooler:
 
         # TODO - make this correct/replaceable
         if cmd is None:
-            cmd = f'gnome-terminal -- bash -c \"export KMP_AFFINITY=none; python main.py --learner -i {learner_id[-1]}; bash;\"'
+            cmd = f'gnome-terminal -- bash -c \"python main.py --learner -i {learner_id[-1]}; bash;\"'
         Popen(shlex.split(cmd))
 
         # Start the configuration for this learner
@@ -318,8 +333,17 @@ class Spooler:
 
     def _asynch_prediction(self):
         self.log.info('Kicking off asynchronous prediction cycle ... ')
+        self._asynch_waiting.clear()
         while not self._halt_spooler.is_set():
             for key, fifo in self.learner_fifos.items():
+
+                # pause if asked
+                if self._asynch_pause.is_set():
+                    self.log.debug('Found asynch pause. Waiting...')
+                    self._asynch_waiting.set()
+                    while self._asynch_pause.is_set():
+                        sleep(0.1)
+
                 if key == 'SL1':
                     continue
 
@@ -337,7 +361,9 @@ class Spooler:
                     if ls == LearnerState.READY:
                         # if we're ready get the latest update params
                         self._memory_lock.acquire()
-                        data_string = json.dumps(self._memory)
+                        update_dict = self._memory.copy()
+                        update_dict['bounds'] = self._spooler_config['bounds']
+                        data_string = json.dumps(update_dict)
                         self._memory_lock.release()
 
                         # let the learner know an update is coming
@@ -369,6 +395,47 @@ class Spooler:
                     pass
 
         self.log.info('Asynchronous predictions finished.')
+        self._asynch_waiting.set()  # set to allow saving afterwards
+
+    def _save(self):
+        self.connection_fifo.send('<SAVE>')
+        self.log.info('Gathering data from learners ... ')
+
+        self._asynch_pause.set()
+        self.log.debug('Waiting on asynch thread ...')
+        while not self._asynch_waiting.is_set():
+            sleep(0.1)
+
+        for key, fifo in self.learner_fifos.items():
+            self.log.debug(f'Sending {key} save command.')
+            fifo.send('<SAVE>')
+
+        returned_keys = []
+        learner_data = []
+        while not self._halt_spooler.is_set():
+            if len(learner_data) == len(self.learner_fifos):
+                self.log.info('Got all learner data.')
+                break
+
+            for key, fifo in self.learner_fifos.items():
+                if key in returned_keys:
+                    continue
+                try:
+                    data = fifo.read(block=True, timeout=1)
+                    learner_data.append(data)
+                    returned_keys.append(key)
+                    self.log.debug(f'Got data from {key}.')
+                except:
+                    pass
+
+        # send back all the data we got
+        for data, key in zip(learner_data, returned_keys):
+            self.connection_fifo.send(f'<LD>{key}={data}')
+
+        self.connection_fifo.send('<FIN>')
+
+        self._asynch_waiting.clear()
+        self._asynch_pause.clear()
 
     def close(self):
         self.log.info('Shutting down spooler ...')
