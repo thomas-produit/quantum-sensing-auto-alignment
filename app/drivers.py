@@ -8,8 +8,9 @@ import session
 from utils.Tools import load_config
 from enum import Enum
 from threading import Thread, Event
-from queue import Queue
+from queue import Queue, Full, Empty
 from time import sleep
+from PIL import Image
 
 # get the logs
 _LOG = logging.getLogger('Drivers')
@@ -41,6 +42,8 @@ for device_str in _DEVICE_LIST:
             from app.driver_libs.jena import NV40
         elif device_str == 'tc038':
             from pymeasure.instruments.hcp import TC038
+        elif device_str == 'thorlabs_camera':
+            from thorlabs_tsi_sdk.tl_camera import TLCameraSDK
 
         _LOG.debug(f'Loading device drivers for {device_str}:' + ok_clr('\t[OK]'))
         _DEVICE_FAILURES[_DEVICE_LIST.index(device_str)] = f'{device_str.upper()}:OK'
@@ -712,26 +715,122 @@ class TC038Driver(BaseDriver):
         super().__init__()
 
 
-def main():
-    # time to define some tests
-    _LOG.info('Starting a thorlabs actuator ... ')
-    # stage_0 = KDC101('/dev/ttyUSB5', 'test')
-    stage_0 = ZaberDriver('/dev/ttyUSB0', 'test')
+class CameraDriver(BaseDriver):
+    def __init__(self, camera_settings=None, image_settings=None):
+        super().__init__()
+        self.log = logging.getLogger('Camera')
+        self.camera = None
+        self.app = None
+        self.acquisition_thread = Thread(target=self._acquisition_loop)
+        self._halt_acq = Event()
+        self._acquire_img = Event()
+        self._image_queue = Queue(maxsize=1)
 
-    while True:
-        x = input('>')
-        if x == 'q':
-            break
-        elif x == 'e':
-            for i in range(stage_0._error_queue.qsize()):
-                _LOG.error(stage_0._error_queue.get())
-        elif x == 'init':
-            stage_0.initialise()
+        if camera_settings is None:
+            self.log.warning('No camera settings provided. Using defaults.')
+            self.camera_settings = {}
         else:
-            try:
-                x_pos = float(x)
-                stage_0.set_parameters(x_pos)
-            except ValueError as e:
-                _LOG.error(f'Could not convert {x} to float.')
+            self.camera_settings = camera_settings
 
-    stage_0.shutdown()
+        if image_settings is None:
+            image_settings = {}
+
+        # image processing values
+        self.roi = image_settings.get('roi', (0, 1000, 500, 1500))
+        self.gain = image_settings.get('gain', 3)
+        self.bit_shift = image_settings.get('bit_shift', 12)
+        self._bit_depth = None
+
+    def initalise(self):
+        sdk = TLCameraSDK()
+        camera_list = sdk.discover_available_cameras()
+
+        if len(camera_list) < 1:
+            self.log.error('Could not find the camera ...')
+            return False
+
+        # load the camera
+        self.camera = sdk.open_camera(camera_list[0])
+
+        # set up the camera
+        self.camera.frames_per_trigger_zero_for_unlimited = 0
+        self.camera.exposure_time_us = self.camera_settings.get('exposure_time', 100000)
+        self.camera.arm(2)
+        self.camera.issue_software_trigger()
+        self._bit_depth = self.camera.bit_depth
+        self.camera.image_poll_timeout_ms = 0
+
+    def start_acquisition(self):
+        # run the acquistion thread
+        self.acquisition_thread.start()
+
+    def _get_image(self, frame):
+        # no coloring, just scale down image to 8 bpp and place into PIL Image object
+        scaled_image = (frame.image_buffer >> (self._bit_depth - self.bit_shift)) * self.gain
+        xmin, xmax, ymin, ymax = self.roi
+        scale = 0.25
+        new_x = int((xmax - xmin) * scale)
+        new_y = int((ymax - ymin) * scale)
+        img = Image.fromarray(scaled_image[xmin:xmax, ymin:ymax])
+        try:
+            if scale != 1.0:
+                img = img.resize((new_x, new_y))
+        except Exception as e:
+            print(e.args)
+
+        return img
+
+    def _acquisition_loop(self):
+        while not self._halt_acq.is_set():
+            try:
+                frame = self.camera.get_pending_frame_or_null()
+                if frame is not None and self._acquire_img.is_set():
+                    pil_image = self._get_image(frame)
+                    self._acquire_img.clear()
+                    self._image_queue.put_nowait(pil_image)
+            except Full:
+                # No point in keeping this image around when the queue is full, let's skip to the next one
+                pass
+            except Exception as error:
+                self.log.error("Encountered error: {error}, image acquisition will stop.".format(error=error))
+                break
+        self.log.info('Image acquisition halted.')
+
+    def get_image(self, timeout=None):
+        # flag that we want an image
+        self._acquire_img.set()
+
+        # wait to get an image back
+        image = self._image_queue.get(timeout=timeout)
+        return image
+
+    def shutdown(self):
+        self._halt_acq.set()
+        self.acquisition_thread.join()
+        # TODO: Properly close camera
+
+
+def main():
+    pass
+    # time to define some tests
+    # _LOG.info('Starting a device ... ')
+    # # stage_0 = KDC101('/dev/ttyUSB5', 'test')
+    # stage_0 = ZaberDriver('/dev/ttyUSB0', 'test')
+    #
+    # while True:
+    #     x = input('>')
+    #     if x == 'q':
+    #         break
+    #     elif x == 'e':
+    #         for i in range(stage_0._error_queue.qsize()):
+    #             _LOG.error(stage_0._error_queue.get())
+    #     elif x == 'init':
+    #         stage_0.initialise()
+    #     else:
+    #         try:
+    #             x_pos = float(x)
+    #             stage_0.set_parameters(x_pos)
+    #         except ValueError as e:
+    #             _LOG.error(f'Could not convert {x} to float.')
+    #
+    # stage_0.shutdown()

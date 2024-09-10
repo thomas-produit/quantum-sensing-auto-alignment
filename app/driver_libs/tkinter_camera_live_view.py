@@ -47,7 +47,6 @@ objects that will be displayed to the canvas. It automatically adjusts its size 
 
 
 class LiveViewCanvas(tk.Canvas):
-
     def __init__(self, parent, image_queue):
         # type: (typing.Any, queue.Queue) -> LiveViewCanvas
         self.image_queue = image_queue
@@ -225,7 +224,7 @@ if __name__ == "__main__":
                         roi_vals = [int(x) for x in roi_vals.split(',')]
                         image_acquisition_thread.roi = roi_vals
                     except ValueError as e:
-                        print(f'Could not convert {val} to a float.')
+                        print(f'Could not convert {roi_vals} to int.')
                         
                 root.after(0, ask_for_userinput)
 
