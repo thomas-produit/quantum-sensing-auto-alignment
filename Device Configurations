@@ -1,0 +1,5 @@
+dev/ttyUSB2,3,5 <- Thorlabs Kinesis:    5-longitudinal
+                                        3-Piezo Drivers
+dev/ttyUSB0 <- Zaber (vertical)
+dev/ttyUSB4 <- Oven/tc038
+dev/ttyACM0 <- Xeryon 

@@ -87,6 +87,9 @@ if __name__ == '__main__':
         _LOG.info(f"Devices in config: {_CONFIG.get('devices', [])}")
         from app import drivers
 
+        # run the main function
+        drivers.main()
+
     else:
         # start the display thread
         display_thread = Thread(target=md.start_display)

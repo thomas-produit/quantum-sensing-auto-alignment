@@ -6,7 +6,7 @@ import math
 import serial.tools.list_ports
 import re
 
-SETTINGS_FILENAME = "settings_default.txt"
+SETTINGS_FILENAME = "./app/driver_libs/settings_default.txt"
 LIBRARY_VERSION = "v1.88"
 
 # DEBUG MODE
@@ -1557,3 +1557,35 @@ def is_numeric(value):
     except ValueError:
         return False
     #return bool(re.match(r'^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$', value))
+
+if __name__ == '__main__':
+    controller = Xeryon('/dev/ttyACM1', 115200)
+    actu = controller.addAxis(Stage.XLS_1, "X")
+    controller.start()
+    print([a.axis_letter for a in controller.getAllAxis()])
+    # print(actu.getDPOS(), actu.getEPOS())
+    actu.findIndex(forceWaiting=True)
+    actu.reset()
+    actu.setUnits(Units.mu)
+    actu.setSpeed(1)
+    actu.stopScan()
+    print(actu.isEncoderValid())
+    # actu.setDPOS(0)
+    # actu.step(10)
+    # print(actu.getDPOS(), actu.getEPOS())
+
+    # print(actu.isForceZero())
+    # print(actu.isMotorOn())
+    # print(actu.isClosedLoop())
+    # print(actu.isEncoderAtIndex())
+    # print(actu.isEncoderValid())
+    # print(actu.isSearchingIndex())
+    # print(actu.isPositionReached())
+    # print(actu.isEncoderError())
+    # print(actu.isScanning())
+    # print(actu.isAtLeftEnd())
+    # print(actu.isAtRightEnd())
+    # print(actu.isErrorLimit())
+    # print(actu.isSearchingOptimalFrequency())
+
+    controller.stop()

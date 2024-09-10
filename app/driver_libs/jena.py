@@ -113,7 +113,7 @@ class NV40:
         else:
             self.__execute('ol')
         
-    def set_remote_control(self,is_enabled):
+    def set_remote_control(self, is_enabled):
         """Switch between remote and manual control
         
         Args:

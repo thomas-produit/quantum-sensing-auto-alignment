@@ -110,3 +110,388 @@ INFO:2024-08-14 15:07:58,991:Drivers:drivers:	ZABER:OK
 INFO:2024-08-14 15:07:58,991:Drivers:drivers:	XERYON:OK
 INFO:2024-08-14 15:07:58,991:Drivers:drivers:	JENA:OK
 INFO:2024-08-14 15:07:58,991:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 10:45:05,288:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 10:45:05,312:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+INFO:2024-09-09 10:50:23,097:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 10:50:23,097:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 10:50:26,899:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 10:50:27,454:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 10:50:27,467:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 10:50:27,468:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 10:50:27,516:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 10:50:27,519:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 10:50:27,519:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 10:50:27,519:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 10:50:27,519:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 10:50:27,519:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 10:50:27,519:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 10:50:27,519:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 11:05:13,096:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 11:05:13,096:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 11:05:14,116:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 11:05:14,335:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 11:05:14,336:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 11:05:14,336:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 11:05:14,345:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 11:05:14,346:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 11:05:14,346:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 11:05:14,346:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 11:05:14,346:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 11:05:14,346:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 11:05:14,346:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 11:05:14,346:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 11:06:14,164:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 11:06:14,164:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 11:06:15,201:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 11:06:15,415:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 11:06:15,417:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 11:06:15,417:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 11:06:15,425:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 11:06:15,427:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 11:06:15,427:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 11:06:15,427:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 11:06:15,427:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 11:06:15,427:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 11:06:15,427:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 11:06:15,427:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 11:06:15,428:Drivers:drivers:Entered main here...
+INFO:2024-09-09 11:08:51,678:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 11:08:51,678:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 11:08:52,694:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 11:08:52,914:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 11:08:52,915:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 11:08:52,915:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 11:08:52,923:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 11:08:52,925:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 11:08:52,925:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 11:08:52,925:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 11:08:52,925:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 11:08:52,925:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 11:08:52,925:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 11:08:52,925:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 11:08:52,925:Drivers:drivers:Entered main here...
+INFO:2024-09-09 11:08:58,383:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 11:08:58,383:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 11:08:59,406:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 11:08:59,620:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 11:08:59,621:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 11:08:59,622:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 11:08:59,630:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 11:08:59,632:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 11:08:59,632:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 11:08:59,632:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 11:08:59,632:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 11:08:59,632:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 11:08:59,632:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 11:08:59,632:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 11:08:59,633:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 11:14:33,034:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 11:14:33,035:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 11:14:34,061:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 11:14:34,276:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 11:14:34,277:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 11:14:34,277:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 11:14:34,286:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 11:14:34,287:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 11:14:34,287:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 11:14:34,287:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 11:14:34,287:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 11:14:34,287:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 11:14:34,287:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 11:14:34,288:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 11:14:34,288:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 11:18:13,398:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 11:18:13,398:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 11:18:14,437:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 11:18:14,659:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 11:18:14,660:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 11:18:14,661:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 11:18:14,669:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 11:18:14,671:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 11:18:14,671:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 11:18:14,671:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 11:18:14,671:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 11:18:14,671:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 11:18:14,671:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 11:18:14,671:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 11:18:14,672:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 13:06:24,927:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 13:06:24,927:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 13:06:25,963:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 13:06:26,185:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 13:06:26,186:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 13:06:26,186:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 13:06:26,195:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 13:06:26,196:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 13:06:26,197:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 13:06:26,197:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 13:06:26,197:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 13:06:26,197:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 13:06:26,197:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 13:06:26,197:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 13:06:26,197:Drivers:drivers:Starting a thorlabs actuator ... 
+ERROR:2024-09-09 13:07:16,549:Drivers:drivers:Could not convert  to int.
+INFO:2024-09-09 13:09:21,876:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 13:09:21,876:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 13:09:22,961:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 13:09:23,182:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 13:09:23,183:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 13:09:23,184:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 13:09:23,192:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 13:09:23,194:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 13:09:23,194:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 13:09:23,194:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 13:09:23,194:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 13:09:23,194:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 13:09:23,194:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 13:09:23,194:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 13:09:23,194:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 13:10:19,907:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 13:10:19,907:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 13:10:20,987:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 13:10:21,210:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 13:10:21,211:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 13:10:21,211:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 13:10:21,220:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 13:10:21,222:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 13:10:21,222:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 13:10:21,222:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 13:10:21,222:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 13:10:21,222:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 13:10:21,222:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 13:10:21,222:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 13:10:21,223:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 13:12:10,959:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 13:12:10,959:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 13:12:12,038:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 13:12:12,267:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 13:12:12,268:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 13:12:12,269:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 13:12:12,279:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 13:12:12,281:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 13:12:12,281:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 13:12:12,281:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 13:12:12,281:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 13:12:12,281:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 13:12:12,281:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 13:12:12,281:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 13:12:12,281:Drivers:drivers:Starting a thorlabs actuator ... 
+DEBUG:2024-09-09 13:12:13,232:Actuator:test:drivers:Moved actuator to: 0
+INFO:2024-09-09 13:13:24,318:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 13:13:24,318:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 13:13:25,394:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 13:13:25,624:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 13:13:25,625:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 13:13:25,625:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 13:13:25,634:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 13:13:25,635:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 13:13:25,635:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 13:13:25,635:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 13:13:25,635:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 13:13:25,635:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 13:13:25,635:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 13:13:25,635:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 13:13:25,635:Drivers:drivers:Starting a thorlabs actuator ... 
+DEBUG:2024-09-09 13:13:27,210:Actuator:test:drivers:Moved actuator to: 0
+INFO:2024-09-09 13:13:40,179:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 13:13:40,179:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 13:13:41,267:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 13:13:41,494:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 13:13:41,495:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 13:13:41,495:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 13:13:41,504:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 13:13:41,505:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 13:13:41,505:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 13:13:41,505:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 13:13:41,505:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 13:13:41,505:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 13:13:41,506:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 13:13:41,506:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 13:13:41,506:Drivers:drivers:Starting a thorlabs actuator ... 
+DEBUG:2024-09-09 13:13:42,295:Actuator:test:drivers:Moved actuator to: 0
+ERROR:2024-09-09 13:13:42,951:Drivers:drivers:('Failed to move actuator ', None)
+DEBUG:2024-09-09 13:13:56,440:Actuator:test:drivers:Moved actuator to: 0
+ERROR:2024-09-09 13:13:58,411:Drivers:drivers:('Failed to move actuator ', None)
+DEBUG:2024-09-09 13:14:01,433:Actuator:test:drivers:Moved actuator to: 0
+ERROR:2024-09-09 13:14:03,217:Drivers:drivers:('Failed to move actuator ', None)
+DEBUG:2024-09-09 13:14:04,585:Actuator:test:drivers:Moved actuator to: 10
+INFO:2024-09-09 13:42:52,063:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 13:42:52,063:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 13:42:53,118:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 13:42:53,342:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 13:42:53,343:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 13:42:53,343:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 13:42:53,352:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 13:42:53,353:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 13:42:53,353:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 13:42:53,353:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 13:42:53,353:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 13:42:53,353:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 13:42:53,353:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 13:42:53,353:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 13:42:53,354:Drivers:drivers:Starting a thorlabs actuator ... 
+DEBUG:2024-09-09 13:43:14,048:Actuator:test:drivers:Moved actuator to: 10000
+DEBUG:2024-09-09 13:43:19,633:Actuator:test:drivers:Moved actuator to: 0
+DEBUG:2024-09-09 13:43:26,610:Actuator:test:drivers:Moved actuator to: 100000
+DEBUG:2024-09-09 13:43:31,554:Actuator:test:drivers:Moved actuator to: 0
+DEBUG:2024-09-09 13:43:55,253:Actuator:test:drivers:Moved actuator to: 1000
+DEBUG:2024-09-09 13:43:59,974:Actuator:test:drivers:Moved actuator to: 10000
+DEBUG:2024-09-09 13:44:05,446:Actuator:test:drivers:Moved actuator to: 100000
+DEBUG:2024-09-09 13:44:10,487:Actuator:test:drivers:Moved actuator to: 0
+INFO:2024-09-09 14:17:55,415:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 14:17:55,415:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 14:17:56,463:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 14:17:56,686:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 14:17:56,688:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 14:17:56,688:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 14:17:56,696:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 14:17:56,698:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 14:17:56,698:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 14:17:56,698:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 14:17:56,698:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 14:17:56,698:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 14:17:56,698:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 14:17:56,698:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 14:17:56,698:Drivers:drivers:Starting a thorlabs actuator ... 
+DEBUG:2024-09-09 14:18:03,057:Actuator:test:drivers:Moved actuator to: 10000
+DEBUG:2024-09-09 14:18:06,801:Actuator:test:drivers:Moved actuator to: 0
+DEBUG:2024-09-09 14:18:15,106:Actuator:test:drivers:Moved actuator to: 10000
+DEBUG:2024-09-09 14:18:20,307:Actuator:test:drivers:Moved actuator to: 0
+INFO:2024-09-09 17:38:00,922:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 17:38:00,923:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 17:38:01,988:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 17:38:02,210:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 17:38:02,212:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 17:38:02,212:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 17:38:02,220:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 17:38:02,222:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 17:38:02,222:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 17:38:02,222:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 17:38:02,222:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 17:38:02,222:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 17:38:02,222:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 17:38:02,222:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 17:38:02,222:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 17:39:30,123:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 17:39:30,123:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 17:39:31,184:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 17:39:31,405:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 17:39:31,406:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 17:39:31,407:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 17:39:31,416:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 17:39:31,417:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 17:39:31,417:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 17:39:31,417:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 17:39:31,417:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 17:39:31,417:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 17:39:31,417:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 17:39:31,417:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 17:39:31,418:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 17:41:17,489:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 17:41:17,489:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 17:41:18,566:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 17:41:18,787:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 17:41:18,788:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 17:41:18,788:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 17:41:18,797:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 17:41:18,798:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 17:41:18,798:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 17:41:18,799:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 17:41:18,799:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 17:41:18,799:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 17:41:18,799:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 17:41:18,799:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 17:41:18,799:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 17:42:17,051:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 17:42:17,051:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 17:42:18,112:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 17:42:18,334:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 17:42:18,335:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 17:42:18,335:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 17:42:18,344:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 17:42:18,346:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 17:42:18,346:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 17:42:18,346:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 17:42:18,346:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 17:42:18,346:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 17:42:18,346:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 17:42:18,346:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 17:42:18,346:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 17:42:41,817:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 17:42:41,818:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 17:42:42,879:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 17:42:43,100:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 17:42:43,101:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 17:42:43,101:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 17:42:43,110:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 17:42:43,111:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 17:42:43,111:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 17:42:43,111:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 17:42:43,111:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 17:42:43,111:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 17:42:43,111:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 17:42:43,111:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 17:42:43,111:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 17:42:45,226:Actuator:test:drivers:Beginning homing sequence.
+INFO:2024-09-09 17:46:43,472:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 17:46:43,472:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 17:46:44,547:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 17:46:44,768:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 17:46:44,770:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 17:46:44,770:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 17:46:44,779:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 17:46:44,780:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 17:46:44,780:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 17:46:44,780:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 17:46:44,780:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 17:46:44,780:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 17:46:44,780:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 17:46:44,780:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 17:46:44,781:Drivers:drivers:Starting a thorlabs actuator ... 
+INFO:2024-09-09 18:09:43,653:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 18:09:43,653:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 18:09:44,717:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 18:09:44,942:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 18:09:44,943:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 18:09:44,943:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 18:09:44,951:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 18:09:44,953:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 18:09:44,953:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 18:09:44,953:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 18:09:44,953:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 18:09:44,953:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 18:09:44,953:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 18:09:44,953:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 18:09:44,954:Drivers:drivers:Starting a thorlabs actuator ... 
+ERROR:2024-09-09 18:10:00,802:Drivers:drivers:Could not convert 15.46 to int.
+INFO:2024-09-09 18:11:03,706:Main:main:Specified main.py as driver test.
+INFO:2024-09-09 18:11:03,706:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038']
+DEBUG:2024-09-09 18:11:04,787:Drivers:drivers:Loading device drivers for thorlabs:[32m	[OK][0m
+DEBUG:2024-09-09 18:11:05,009:Drivers:drivers:Loading device drivers for zaber:[32m	[OK][0m
+DEBUG:2024-09-09 18:11:05,010:Drivers:drivers:Loading device drivers for xeryon:[32m	[OK][0m
+DEBUG:2024-09-09 18:11:05,011:Drivers:drivers:Loading device drivers for jena:[32m	[OK][0m
+WARNING:2024-09-09 18:11:05,019:pymeasure.adapters.vxi11:vxi11:Failed to import vxi11 package, which is required for the VXI11Adapter
+DEBUG:2024-09-09 18:11:05,021:Drivers:drivers:Loading device drivers for tc038:[32m	[OK][0m
+INFO:2024-09-09 18:11:05,021:Drivers:drivers:Device stats: -- 
+INFO:2024-09-09 18:11:05,021:Drivers:drivers:	THORLABS:OK
+INFO:2024-09-09 18:11:05,021:Drivers:drivers:	ZABER:OK
+INFO:2024-09-09 18:11:05,021:Drivers:drivers:	XERYON:OK
+INFO:2024-09-09 18:11:05,021:Drivers:drivers:	JENA:OK
+INFO:2024-09-09 18:11:05,021:Drivers:drivers:	TC038:OK
+INFO:2024-09-09 18:11:05,021:Drivers:drivers:Starting a thorlabs actuator ... 
+DEBUG:2024-09-10 11:31:42,358:Server:TCP:Registering FIFO for [spooler].
+INFO:2024-09-10 11:31:42,358:Manager:manager:Initialising optimisation ...
+DEBUG:2024-09-10 11:31:42,359:Manager:manager:Checking if data directory exists
+INFO:2024-09-10 11:31:42,359:Manager:manager:Created data directory @'./data'.
+INFO:2024-09-10 11:31:42,359:Manager:manager:Optimisation Configuration loaded:
+INFO:2024-09-10 11:31:42,359:Manager:manager:    -Parameters: 10
+INFO:2024-09-10 11:31:42,360:Manager:manager:    -bound_restriction: 0.05
+INFO:2024-09-10 11:31:42,360:Manager:manager:    -initial_count: 50
+INFO:2024-09-10 11:31:42,360:Manager:manager:    -learner_number: 5
+INFO:2024-09-10 11:31:42,360:Manager:manager:    -halt_number: 500
+INFO:2024-09-10 11:31:42,360:Manager:manager:    -bounds: ((-32, 32), (-32, 32), (-32, 32), (-32, 32), (-32, 32), (-32, 32), (-32, 32), (-32, 32), (-32, 32), (-32, 32))
+INFO:2024-09-10 11:31:42,360:Manager:manager:    -data_dir: ./data
+INFO:2024-09-10 11:31:42,361:Server:TCP:Server started @127.0.0.1:57821
+DEBUG:2024-09-10 11:31:42,361:Server:TCP:Dumping thread started.
+INFO:2024-09-10 11:31:42,361:Manager:manager:Starting thread:[spooler] ...
+INFO:2024-09-10 11:31:42,361:Manager:manager:Querying spooler status ...

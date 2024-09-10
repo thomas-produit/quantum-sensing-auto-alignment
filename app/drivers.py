@@ -105,7 +105,7 @@ class KDC101(BaseDriver):
         :param actuator_id: an ID string for keeping track of multiple actuators
         :param start_at_home: Whether the actuator should home initially or not
         """
-        super(BaseDriver).__init__()
+        super().__init__()
         self.ID = actuator_id
         self._action_thread = None
         self._state = ActuatorState.READY
@@ -178,7 +178,7 @@ class KDC101(BaseDriver):
             self._action_thread.start()
         elif action == ActuatorAction.MOVE:
             self._state = ActuatorState.MOVING
-            self._action_thread = Thread(target=self._actions, args=('MOVE', arg))
+            self._action_thread = Thread(target=self._actions, args=(('MOVE', arg),))
             self._action_thread.start()
 
         return True
@@ -199,18 +199,146 @@ class KDC101(BaseDriver):
             self._state = ActuatorState.READY
         elif action == 'MOVE':
             # move to 'value' steps
-            success = self._actuator.move_to(int(value), scale=False)
-            if not success:
-                self.add_error('Failed to move actuator ')
+            self._actuator.move_to(int(value), scale=False)
+            observed_twice = False
+            while self._actuator.get_position() != int(value) and not observed_twice:
+                sleep(0.1)
+                if self._actuator.get_position() == int(value):
+                    observed_twice = True
             self._state = ActuatorState.READY
             self._current_state = self._actuator.get_position()
+            self.log.debug(f'Moved actuator to: {self._current_state}')
 
         # clear the running command
         self.async_running.clear()
 
     def shutdown(self):
         # TODO: Confirm shutdown proc
-        pass
+        self._actuator.close()
+
+
+class KIM101(BaseDriver):
+    """
+    Controller class for the K-Cubes KDC101 supplied by Thorlabs. The following is implemented using pylablib and
+    following documentation @ https://pylablib.readthedocs.io/en/latest/devices/Thorlabs_kinesis.html
+    """
+    def __init__(self, device_conn, actuator_id='', start_at_home=False):
+        """
+        Constructor for the K-Cube driver which establishes a connection and intialises the actuators.
+        :param device_conn: connection string of the form (likely) /dev/TTY0...
+        :param actuator_id: an ID string for keeping track of multiple actuators
+        :param start_at_home: Whether the actuator should home initially or not
+        """
+        super().__init__()
+        self.ID = actuator_id
+        self._action_thread = None
+        self._state = ActuatorState.READY
+        self._actuator = Thorlabs.KinesisPiezoMotor(device_conn)
+        self._actuator_halt = Event()
+        self.log = logging.getLogger(f'Actuator:{actuator_id}')
+        self.async_running = Event()
+
+    def initialise(self, config_dict):
+        """
+        Initialisation of the actuators that can be called by the interface/user
+        :param config_dict: Configuration dictionary for initialising
+        :return:
+        """
+        if config_dict.get('home', False):
+            self.log.info('Beginning homing sequence.')
+            self.asynch_action(ActuatorAction.HOME)
+
+        # reset the current state
+        self._current_state = [0]
+
+    def wait_on_actuator(self):
+        """
+        Wait for the actuator to finish moving
+        :return:
+        """
+        while not self._actuator_halt.is_set():
+            # check if we are moving
+            if self._state is ActuatorState.READY:
+                return True
+
+            sleep(0.01)     # rate limit
+
+        return False
+
+    def set_parameters(self, X, asynch=False):
+        """
+        Set parameters function overriding the base class implementation. This is how we expect to move the actuators in
+        the interface.
+        :param X: Parameters, in this case a scalar position
+        :param asynch: whether we wish to perform this action asynchronously
+        :return: None
+        """
+        self.asynch_action(ActuatorAction.MOVE, X)
+        if not asynch:
+            self.wait_on_actuator()
+
+    def asynch_action(self, action=None, arg=None):
+        """
+        Asynchronous action to be taken by the actuators.
+        :param action: The action to take, should parse ActuatorAction class.
+        :param arg: Any argument that needs to be provided. For example ActuatorAction.MOVE requires a scalar distance.
+        :return:Success (bool)
+        """
+        if action is None:
+            raise RuntimeError('No action provided to the actuator.')
+
+        # halt if necessary
+        if action == ActuatorAction.STOP:
+            self._actuator.stop()
+            return True
+
+        if self.async_running.is_set():
+            raise RuntimeError(f'Cannot start a new action before the old action has completed. Check '
+                               f'{self.__class__.__name__}.async_running.is_set() before calling a new action.')
+
+        if action == ActuatorAction.HOME:
+            self._state = ActuatorState.MOVING
+            self._action_thread = Thread(target=self._actions, args=('HOME', None))
+            self._action_thread.start()
+        elif action == ActuatorAction.MOVE:
+            self._state = ActuatorState.MOVING
+            self._action_thread = Thread(target=self._actions, args=(('MOVE', arg),))
+            self._action_thread.start()
+
+        return True
+
+    def _actions(self, args):
+        """
+        Asynchronous thread to call, calls to respective functions are blocking.
+        :param args: args parsed from the asynch_action function in the form (action, value)
+        :return: None
+        """
+        # get the arguments
+        action, value = args
+        self.async_running.set()
+
+        if action == 'HOME':
+            self._actuator.home()
+            self._actuator.wait_for_home()
+            self._state = ActuatorState.READY
+        elif action == 'MOVE':
+            # move to 'value' steps
+            self._actuator.move_to(int(value), scale=False)
+            observed_twice = False
+            while self._actuator.get_position() != int(value) and not observed_twice:
+                sleep(0.1)
+                if self._actuator.get_position() == int(value):
+                    observed_twice = True
+            self._state = ActuatorState.READY
+            self._current_state = self._actuator.get_position()
+            self.log.debug(f'Moved actuator to: {self._current_state}')
+
+        # clear the running command
+        self.async_running.clear()
+
+    def shutdown(self):
+        # TODO: Confirm shutdown proc
+        self._actuator.close()
 
 
 class ZaberDriver(BaseDriver):
@@ -225,7 +353,7 @@ class ZaberDriver(BaseDriver):
         :param device_conn: connection string of the form (likely) /dev/TTY0...
         :param actuator_id: an ID string for keeping track of multiple actuators
         """
-        super(BaseDriver).__init__()
+        super().__init__()
         self.ID = actuator_id
         self._action_thread = None
         self._state = ActuatorState.READY
@@ -241,7 +369,7 @@ class ZaberDriver(BaseDriver):
         # default units to use TODO:check if correct
         self.units = zm.Units.LENGTH_MILLIMETRES
 
-    def initialise(self, config_dict):
+    def initialise(self, config_dict={}):
         """
         Initialisation of the actuators that can be called by the interface/user
         :return:
@@ -250,10 +378,15 @@ class ZaberDriver(BaseDriver):
         self._current_state = 0
 
         # find an axis for us to initialise
-        self._device = self._connection.get_device(1)
+        dev_ls = self._connection.detect_devices()
+        try:
+            self._device = dev_ls[0]
+        except IndexError as e:
+            self.log.error('Could not find Zaber device. Check connection.')
+            self.log.error(f'{e.args}')
         self._actuator = self._device.get_axis(1)
 
-        if config_dict.get('home', True):
+        if config_dict.get('home', False):
             self.log.info('Beginning homing sequence.')
             self.asynch_action(ActuatorAction.HOME)
 
@@ -304,11 +437,11 @@ class ZaberDriver(BaseDriver):
 
         if action == ActuatorAction.HOME:
             self._state = ActuatorState.MOVING
-            self._action_thread = Thread(target=self._actions, args=('HOME', None))
+            self._action_thread = Thread(target=self._actions, args=(('HOME', None),))
             self._action_thread.start()
         elif action == ActuatorAction.MOVE:
             self._state = ActuatorState.MOVING
-            self._action_thread = Thread(target=self._actions, args=('MOVE', arg))
+            self._action_thread = Thread(target=self._actions, args=(('MOVE', arg),))
             self._action_thread.start()
 
         return True
@@ -338,6 +471,121 @@ class ZaberDriver(BaseDriver):
 
     def shutdown(self):
         self._connection.close()
+
+
+class JenaDriver(BaseDriver):
+    """
+    Controller class for the K-Cubes KDC101 supplied by Thorlabs. The following is implemented using pylablib and
+    following documentation @ https://pylablib.readthedocs.io/en/latest/devices/Thorlabs_kinesis.html
+    """
+    def __init__(self, device_conn, actuator_id='', start_at_home=False):
+        """
+        Constructor for the K-Cube driver which establishes a connection and intialises the actuators.
+        :param device_conn: connection string of the form (likely) /dev/TTY0...
+        :param actuator_id: an ID string for keeping track of multiple actuators
+        :param start_at_home: Whether the actuator should home initially or not
+        """
+        super().__init__()
+        self.ID = actuator_id
+        self._action_thread = None
+        self._state = ActuatorState.READY
+        self._actuator = NV40(device_conn)
+        self._actuator_halt = Event()
+        self.log = logging.getLogger(f'Actuator:{actuator_id}')
+        self.async_running = Event()
+
+    def initialise(self, config_dict):
+        """
+        Initialisation of the actuators that can be called by the interface/user
+        :param config_dict: Configuration dictionary for initialising
+        :return:
+        """
+        # reset the current state
+        self._current_state = self._actuator.get_position()
+
+    def wait_on_actuator(self):
+        """
+        Wait for the actuator to finish moving
+        :return:
+        """
+        while not self._actuator_halt.is_set():
+            # check if we are moving
+            if self._state is ActuatorState.READY:
+                return True
+
+            sleep(0.01)     # rate limit
+
+        return False
+
+    def set_parameters(self, X, asynch=False):
+        """
+        Set parameters function overriding the base class implementation. This is how we expect to move the actuators in
+        the interface.
+        :param X: Parameters, in this case a scalar position
+        :param asynch: whether we wish to perform this action asynchronously
+        :return: None
+        """
+        self.asynch_action(ActuatorAction.MOVE, X)
+        if not asynch:
+            self.wait_on_actuator()
+
+    def asynch_action(self, action=None, arg=None):
+        """
+        Asynchronous action to be taken by the actuators.
+        :param action: The action to take, should parse ActuatorAction class.
+        :param arg: Any argument that needs to be provided. For example ActuatorAction.MOVE requires a scalar distance.
+        :return:Success (bool)
+        """
+        if action is None:
+            raise RuntimeError('No action provided to the actuator.')
+
+        # halt if necessary
+        if action == ActuatorAction.STOP:
+            self._actuator.stop()
+            return True
+
+        if self.async_running.is_set():
+            raise RuntimeError(f'Cannot start a new action before the old action has completed. Check '
+                               f'{self.__class__.__name__}.async_running.is_set() before calling a new action.')
+
+        if action == ActuatorAction.HOME:
+            self._state = ActuatorState.MOVING
+            self._action_thread = Thread(target=self._actions, args=('HOME', None))
+            self._action_thread.start()
+        elif action == ActuatorAction.MOVE:
+            self._state = ActuatorState.MOVING
+            self._action_thread = Thread(target=self._actions, args=(('MOVE', arg),))
+            self._action_thread.start()
+
+        return True
+
+    def _actions(self, args):
+        """
+        Asynchronous thread to call, calls to respective functions are blocking.
+        :param args: args parsed from the asynch_action function in the form (action, value)
+        :return: None
+        """
+        # get the arguments
+        action, value = args
+        self.async_running.set()
+
+        if action == 'HOME':
+            self._actuator.home()
+            self._actuator.wait_for_home()
+            self._state = ActuatorState.READY
+        elif action == 'MOVE':
+            # move to 'value' steps
+            self._actuator.set_position(float(value))
+            self._state = ActuatorState.READY
+            self._current_state = self._actuator.get_position()
+            self.log.debug(f'Moved actuator to: {self._current_state}')
+
+        # clear the running command
+        self.async_running.clear()
+
+    def shutdown(self):
+        # TODO: Confirm shutdown proc
+        self._actuator.set_remote_control(False)
 
 
 class XeryonDriver(BaseDriver):
@@ -453,7 +701,6 @@ class XeryonDriver(BaseDriver):
     def shutdown(self):
         # shutdown the controller
         self._controller.stop()
-
         
 
 class TC038Driver(BaseDriver):
@@ -463,3 +710,28 @@ class TC038Driver(BaseDriver):
     """
     def __init__(self):
         super().__init__()
+
+
+def main():
+    # time to define some tests
+    _LOG.info('Starting a thorlabs actuator ... ')
+    # stage_0 = KDC101('/dev/ttyUSB5', 'test')
+    stage_0 = ZaberDriver('/dev/ttyUSB0', 'test')
+
+    while True:
+        x = input('>')
+        if x == 'q':
+            break
+        elif x == 'e':
+            for i in range(stage_0._error_queue.qsize()):
+                _LOG.error(stage_0._error_queue.get())
+        elif x == 'init':
+            stage_0.initialise()
+        else:
+            try:
+                x_pos = float(x)
+                stage_0.set_parameters(x_pos)
+            except ValueError as e:
+                _LOG.error(f'Could not convert {x} to float.')
+
+    stage_0.shutdown()
