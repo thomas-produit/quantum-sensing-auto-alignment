@@ -1,0 +1,9 @@
+Longitudinal:: 0mm +- 2mm
+Lateral:: +- 0.5mm
+Piezo:: Aaron do
+Z Coarse:: 15.46 +- 0.25
+Z Fine:: Sampling-half wavelength (3um/2 / sampling points)
+Idle_shutter: open:0mm, closed:20mm
+
+1. For each z_fine pt, acquire image
+2. For each z_fine sequence, 1 mage w/ idler shut

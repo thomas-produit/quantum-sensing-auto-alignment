@@ -101,7 +101,7 @@ class KDC101(BaseDriver):
     Controller class for the K-Cubes KDC101 supplied by Thorlabs. The following is implemented using pylablib and
     following documentation @ https://pylablib.readthedocs.io/en/latest/devices/Thorlabs_kinesis.html
     """
-    def __init__(self, device_conn, actuator_id='', start_at_home=False):
+    def __init__(self, device_conn, actuator_id='', start_at_home=False, tol=0.0):
         """
         Constructor for the K-Cube driver which establishes a connection and intialises the actuators.
         :param device_conn: connection string of the form (likely) /dev/TTY0...
@@ -112,10 +112,14 @@ class KDC101(BaseDriver):
         self.ID = actuator_id
         self._action_thread = None
         self._state = ActuatorState.READY
-        self._actuator = Thorlabs.KinesisMotor(device_conn)
+        self._actuator = Thorlabs.KinesisMotor(device_conn, scale='stage')
         self._actuator_halt = Event()
         self.log = logging.getLogger(f'Actuator:{actuator_id}')
+        self.log.addHandler(session.display_log_handler)
+        self.log.debug(f'Stage using units: {self._actuator.get_scale_units()}')
         self.async_running = Event()
+        self._current_state = 0
+        self._tol = tol
 
     def initialise(self, config_dict):
         """
@@ -128,7 +132,12 @@ class KDC101(BaseDriver):
             self.asynch_action(ActuatorAction.HOME)
 
         # reset the current state
-        self._current_state = [0]
+        self._current_state = self._actuator.get_position()
+
+    def get_position(self, query=True):
+        if query:
+            self._current_state = self._actuator.get_position()
+        return self._current_state
 
     def wait_on_actuator(self):
         """
@@ -137,7 +146,7 @@ class KDC101(BaseDriver):
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
-            if self._state is ActuatorState.READY:
+            if self._state is ActuatorState.READY and not self.async_running.is_set() and not self._actuator.is_moving():
                 return True
 
             sleep(0.01)     # rate limit
@@ -202,11 +211,11 @@ class KDC101(BaseDriver):
             self._state = ActuatorState.READY
         elif action == 'MOVE':
             # move to 'value' steps
-            self._actuator.move_to(int(value), scale=False)
+            self._actuator.move_to(float(value), scale=True)
             observed_twice = False
-            while self._actuator.get_position() != int(value) and not observed_twice:
+            while not (float(value) - self._tol <= self._actuator.get_position() <= float(value) + self._tol) and not observed_twice:
                 sleep(0.1)
-                if self._actuator.get_position() == int(value):
+                if float(value) - self._tol <= self._actuator.get_position() <= float(value) + self._tol:
                     observed_twice = True
             self._state = ActuatorState.READY
             self._current_state = self._actuator.get_position()
@@ -225,7 +234,7 @@ class KIM101(BaseDriver):
     Controller class for the K-Cubes KDC101 supplied by Thorlabs. The following is implemented using pylablib and
     following documentation @ https://pylablib.readthedocs.io/en/latest/devices/Thorlabs_kinesis.html
     """
-    def __init__(self, device_conn, actuator_id='', start_at_home=False):
+    def __init__(self, device_conn, actuator_id='', start_at_home=False, tol=0):
         """
         Constructor for the K-Cube driver which establishes a connection and intialises the actuators.
         :param device_conn: connection string of the form (likely) /dev/TTY0...
@@ -239,7 +248,9 @@ class KIM101(BaseDriver):
         self._actuator = Thorlabs.KinesisPiezoMotor(device_conn)
         self._actuator_halt = Event()
         self.log = logging.getLogger(f'Actuator:{actuator_id}')
+        self.log.addHandler(session.display_log_handler)
         self.async_running = Event()
+        self._tol = tol
 
     def initialise(self, config_dict):
         """
@@ -251,24 +262,33 @@ class KIM101(BaseDriver):
             self.log.info('Beginning homing sequence.')
             self.asynch_action(ActuatorAction.HOME)
 
-        # reset the current state
-        self._current_state = [0]
+        channels = config_dict.get('channels', (1, 2))
+        self._actuator.enable_channels(channels)
 
-    def wait_on_actuator(self):
+        # reset the current state
+        self._current_state = self.get_position()
+
+    def get_position(self, query=True):
+        if query:
+            channels = self._actuator.get_enabled_channels()
+            self._current_state = [self._actuator.get_position(channel=c) for c in channels]
+        return self._current_state
+
+    def wait_on_actuator(self, axis=1):
         """
         Wait for the actuator to finish moving
         :return:
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
-            if self._state is ActuatorState.READY:
+            if self._state is ActuatorState.READY and not self.async_running.is_set() and not self._actuator.is_moving(channel=int(axis)):
                 return True
 
             sleep(0.01)     # rate limit
 
         return False
 
-    def set_parameters(self, X, asynch=False):
+    def set_parameters(self, X, asynch=False, axis=1):
         """
         Set parameters function overriding the base class implementation. This is how we expect to move the actuators in
         the interface.
@@ -276,9 +296,9 @@ class KIM101(BaseDriver):
         :param asynch: whether we wish to perform this action asynchronously
         :return: None
         """
-        self.asynch_action(ActuatorAction.MOVE, X)
+        self.asynch_action(ActuatorAction.MOVE, (X, axis))
         if not asynch:
-            self.wait_on_actuator()
+            self.wait_on_actuator(axis=axis)
 
     def asynch_action(self, action=None, arg=None):
         """
@@ -326,15 +346,19 @@ class KIM101(BaseDriver):
             self._state = ActuatorState.READY
         elif action == 'MOVE':
             # move to 'value' steps
-            self._actuator.move_to(int(value), scale=False)
-            observed_twice = False
-            while self._actuator.get_position() != int(value) and not observed_twice:
-                sleep(0.1)
-                if self._actuator.get_position() == int(value):
-                    observed_twice = True
+            position, axis = value
+            axis = int(axis)
+            self._actuator.move_to(int(position), channel=axis)
+            while self._actuator.is_moving(channel=int(axis)):
+                sleep(0.01)
+            # observed_twice = False
+            # while not (int(position) - self._tol <= self._actuator.get_position(channel=axis) <= int(position) + self._tol) and not observed_twice:
+            #     sleep(0.1)
+            #     if int(position) - self._tol <= self._actuator.get_position(channel=axis) <= int(position) + self._tol:
+            #         observed_twice = True
             self._state = ActuatorState.READY
-            self._current_state = self._actuator.get_position()
-            self.log.debug(f'Moved actuator to: {self._current_state}')
+            self._current_state[axis-1] = self._actuator.get_position(channel=axis)
+            self.log.debug(f'Moved actuator to: {self.get_position()}')
 
         # clear the running command
         self.async_running.clear()
@@ -367,6 +391,7 @@ class ZaberDriver(BaseDriver):
         self._current_state = 0
 
         self.log = logging.getLogger(f'Actuator:{actuator_id}')
+        self.log.addHandler(session.display_log_handler)
         self.async_running = Event()
 
         # default units to use TODO:check if correct
@@ -377,8 +402,7 @@ class ZaberDriver(BaseDriver):
         Initialisation of the actuators that can be called by the interface/user
         :return:
         """
-        # reset the current state
-        self._current_state = 0
+        
 
         # find an axis for us to initialise
         dev_ls = self._connection.detect_devices()
@@ -387,12 +411,21 @@ class ZaberDriver(BaseDriver):
         except IndexError as e:
             self.log.error('Could not find Zaber device. Check connection.')
             self.log.error(f'{e.args}')
+            return False
         self._actuator = self._device.get_axis(1)
+
+        # reset the current state
+        self._current_state = self.get_position()
 
         if config_dict.get('home', False):
             self.log.info('Beginning homing sequence.')
             self.asynch_action(ActuatorAction.HOME)
 
+    def get_position(self, query=True):
+        if query:
+            self._current_state = self._actuator.get_position(self.units)
+        return self._current_state
+    
     def wait_on_actuator(self):
         """
         Wait for the actuator to finish moving
@@ -400,10 +433,10 @@ class ZaberDriver(BaseDriver):
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
-            if self._state is ActuatorState.READY:
+            if self._state is ActuatorState.READY and not self.async_running.is_set():
                 return True
 
-            sleep(0.01)  # rate limit
+            sleep(0.01)     # rate limit
 
         return False
 
@@ -495,6 +528,7 @@ class JenaDriver(BaseDriver):
         self._actuator = NV40(device_conn)
         self._actuator_halt = Event()
         self.log = logging.getLogger(f'Actuator:{actuator_id}')
+        self.log.addHandler(session.display_log_handler)
         self.async_running = Event()
 
     def initialise(self, config_dict):
@@ -504,8 +538,13 @@ class JenaDriver(BaseDriver):
         :return:
         """
         # reset the current state
-        self._current_state = self._actuator.get_position()
+        self._current_state = self.get_position()
 
+    def get_position(self, query=True):
+        if query:
+            self._current_state = self._actuator.get_position()
+        return self._current_state
+    
     def wait_on_actuator(self):
         """
         Wait for the actuator to finish moving
@@ -513,7 +552,7 @@ class JenaDriver(BaseDriver):
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
-            if self._state is ActuatorState.READY:
+            if self._state is ActuatorState.READY and not self.async_running.is_set():
                 return True
 
             sleep(0.01)     # rate limit
@@ -615,6 +654,7 @@ class XeryonDriver(BaseDriver):
         self._actuator_halt = Event()
 
         self.log = logging.getLogger(f'Actuator:{actuator_id}')
+        self.log.addHandler(session.display_log_handler)
         self.async_running = Event()
 
         # TODO: Confirm this is a good choice
@@ -725,6 +765,7 @@ class CameraDriver(BaseDriver):
         self._halt_acq = Event()
         self._acquire_img = Event()
         self._image_queue = Queue(maxsize=1)
+        self.sdk = None
 
         if camera_settings is None:
             self.log.warning('No camera settings provided. Using defaults.')
@@ -740,17 +781,18 @@ class CameraDriver(BaseDriver):
         self.gain = image_settings.get('gain', 3)
         self.bit_shift = image_settings.get('bit_shift', 12)
         self._bit_depth = None
+        self.return_as_numpy_array = False
 
-    def initalise(self):
-        sdk = TLCameraSDK()
-        camera_list = sdk.discover_available_cameras()
+    def initialise(self):
+        self.sdk = TLCameraSDK()
+        camera_list = self.sdk.discover_available_cameras()
 
         if len(camera_list) < 1:
             self.log.error('Could not find the camera ...')
             return False
 
         # load the camera
-        self.camera = sdk.open_camera(camera_list[0])
+        self.camera = self.sdk.open_camera(camera_list[0])
 
         # set up the camera
         self.camera.frames_per_trigger_zero_for_unlimited = 0
@@ -765,29 +807,33 @@ class CameraDriver(BaseDriver):
         self.acquisition_thread.start()
 
     def _get_image(self, frame):
-        # no coloring, just scale down image to 8 bpp and place into PIL Image object
-        scaled_image = (frame.image_buffer >> (self._bit_depth - self.bit_shift)) * self.gain
-        xmin, xmax, ymin, ymax = self.roi
-        scale = 0.25
-        new_x = int((xmax - xmin) * scale)
-        new_y = int((ymax - ymin) * scale)
-        img = Image.fromarray(scaled_image[xmin:xmax, ymin:ymax])
-        try:
-            if scale != 1.0:
-                img = img.resize((new_x, new_y))
-        except Exception as e:
-            print(e.args)
+        if not(self.return_as_numpy_array):
+            # no coloring, just scale down image to 8 bpp and place into PIL Image object
+            scaled_image = (frame.image_buffer >> (self._bit_depth - self.bit_shift)) * self.gain
+            xmin, xmax, ymin, ymax = self.roi
+            scale = 0.25
+            new_x = int((xmax - xmin) * scale)
+            new_y = int((ymax - ymin) * scale)
+            img = Image.fromarray(scaled_image[xmin:xmax, ymin:ymax])
+            try:
+                if scale != 1.0:
+                    img = img.resize((new_x, new_y))
+            except Exception as e:
+                print(e.args)
 
-        return img
+            return img
+        else:
+            scaled_image = frame.image_buffer
+            return np.copy(scaled_image)
 
     def _acquisition_loop(self):
         while not self._halt_acq.is_set():
             try:
                 frame = self.camera.get_pending_frame_or_null()
                 if frame is not None and self._acquire_img.is_set():
-                    pil_image = self._get_image(frame)
+                    pil_or_numpy_array_image = self._get_image(frame)
                     self._acquire_img.clear()
-                    self._image_queue.put_nowait(pil_image)
+                    self._image_queue.put_nowait(pil_or_numpy_array_image)
             except Full:
                 # No point in keeping this image around when the queue is full, let's skip to the next one
                 pass
@@ -807,7 +853,8 @@ class CameraDriver(BaseDriver):
     def shutdown(self):
         self._halt_acq.set()
         self.acquisition_thread.join()
-        # TODO: Properly close camera
+        self.camera.dispose()
+        self.sdk.dispose()
 
 
 def main():

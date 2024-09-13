@@ -7,7 +7,7 @@ import session
 from utils.Tools import DisplayLogHandler, load_config, StdOutLogHandler
 from app.display import MainDisplay
 from app.manager import Manager
-from app.interface import TestInterface
+from app.interface import TestInterface, QuantumImaging
 from comms import TCP
 from app.spooler import Spooler
 
@@ -34,6 +34,9 @@ parser.add_argument("--sampler",
 parser.add_argument("--driver_test",
                     action='store_true',
                     help="Load the drivers module and run the main test in it")
+parser.add_argument("--interface_test",
+                    action='store_true',
+                    help="Load interface and test it")
 parser.add_argument('-i', '--id', type=int,
                     help='The identifier of the learner to be used in conjunction with --learner.')
 args = parser.parse_args()
@@ -90,6 +93,14 @@ if __name__ == '__main__':
         # run the main function
         drivers.main()
 
+    elif bool(args.interface_test):
+        session.display_log_handler = StdOutLogHandler()
+        _LOG.addHandler(session.display_log_handler)
+        _LOG.info('Specified main.py as interface test.')
+
+        from app.interface import test
+        test()
+
     else:
         # start the display thread
         display_thread = Thread(target=md.start_display)
@@ -98,15 +109,18 @@ if __name__ == '__main__':
         # declare the TCP server, the manager will start it
         server = TCP.Server(_CONFIG)
 
+        qinterface = QuantumImaging('./data/sampling_jena_good.h5')
+        # qinterface.run_parameters([0, 0, 0, 15.46])
+
         # declare the manager to run the optimisation
         manager = Manager(server)
         optimisation_config = {'bound_restriction': '0.05',
-                               'initial_count': '50',
-                               'learner_number': '5',
-                               'halt_number': '500',
-                               'bounds': tuple([(-32, 32)]*10),
-                               'interface': TestInterface(),
-                               'interface_args': 'ackley'
+                               'initial_count': '100',
+                               'learner_number': '1',
+                               'halt_number': '10',
+                               'bounds': ((-2e-3, 2e-3), (-2000, 2000), (-2000, 2000), (15.46-0.25, 15.46+0.25)),
+                               'interface': qinterface,
+                               'interface_args': ''
                                }
         manager.initialise_optimisation(optimisation_config)
         manager.start_optimisation()
@@ -119,4 +133,6 @@ if __name__ == '__main__':
 
         # exit steps
         manager.close()
+
+        qinterface.shutdown()
 

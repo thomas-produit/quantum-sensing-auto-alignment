@@ -365,10 +365,10 @@ class Manager:
             # is it in the correct range
             if value < 1:
                 errors.append(f'Halt_number:{value} should be >= 1.')
-            elif initial_count_ok:
-                if self._optimisation_config['halt_number'] < self._optimisation_config['initial_count']:
-                    errors.append(f"halt_number:{value} should be >= "
-                                  f"initial_count:{self._optimisation_config['initial_count']}")
+            # elif initial_count_ok:
+            #     if self._optimisation_config['halt_number'] < self._optimisation_config['initial_count']:
+            #         errors.append(f"halt_number:{value} should be >= "
+            #                       f"initial_count:{self._optimisation_config['initial_count']}")
 
         except ValueError as e:
             errors.append(f"Could not convert halt_number:"
@@ -636,13 +636,13 @@ class Manager:
             json.dump(self._memory, f)
 
         # get the FIFO to communicate with the spooler
-        _, manager_fifo = self.threads['spooler']
-        self.log.info('Getting model data ...')
-        manager_fifo.put('<SAVE>')
+        # _, manager_fifo = self.threads['spooler']
+        # self.log.info('Getting model data ...')
+        # manager_fifo.put('<SAVE>')
 
-        # wait for the saving to finish
-        while not self.save_event.is_set():
-            sleep(0.1)
+        # # wait for the saving to finish
+        # while not self.save_event.is_set():
+        #     sleep(0.1)
 
         self.log.info('Saving models complete.')
 

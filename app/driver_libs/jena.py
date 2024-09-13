@@ -51,8 +51,13 @@ class NV40:
                       'err,5':'Wrong character in parameter',
                       'err,6':'Wrong separator',
                       'err,7':'Position out of range'}
+        
+        self.serial_conn = serial.Serial(port=self.port, baudrate=self.baudrate, bytesize=self.bytesize, 
+            parity=self.parity, timeout=self.timeout)
+        
         self.set_remote_control(True)
         self.set_closed_loop(closed_loop)
+        
 
     def __enter__(self):
         return self
@@ -60,6 +65,7 @@ class NV40:
     def __exit__(self, type, value, traceback):
         """Return to manual control after use with .. as statement"""
         self.set_remote_control(False)
+        self.serial_conn.close()
 
     def __execute(self, command):
         """Execute a device command and check if the device returned an error
@@ -73,14 +79,12 @@ class NV40:
         Raises:
             DeviceError
         """
-        with serial.Serial(port=self.port, baudrate=self.baudrate, bytesize=self.bytesize, 
-            parity=self.parity, timeout=self.timeout) as ser:
-            command += '\r'
-            ser.write(command.encode())
-            answer = ser.read(100).decode("utf-8").rstrip()
-            if answer in self.errors:
-                raise ValueError(self.errors[answer])
-            return answer
+        command += '\r'
+        self.serial_conn.write(command.encode())
+        answer = self.serial_conn.read(100).decode("utf-8").rstrip()
+        if answer in self.errors:
+            raise ValueError(self.errors[answer])
+        return answer
         
     def set_position(self, value):
         """Set position 
@@ -91,7 +95,7 @@ class NV40:
         Args:
             value (float): Position in urad/um (closed loop) or volts (open loop)
         """
-        self.set_remote_control(True)
+        # self.set_remote_control(True)
         self.__execute('wr, %.2f' % value)
         
     def get_position(self):
