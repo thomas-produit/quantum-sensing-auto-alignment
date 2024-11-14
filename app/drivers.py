@@ -795,10 +795,9 @@ class CameraDriver(BaseDriver):
         self.camera = self.sdk.open_camera(camera_list[0])
 
         # set up the camera
-        self.camera.frames_per_trigger_zero_for_unlimited = 0
-        self.camera.exposure_time_us = self.camera_settings.get('exposure_time', 100000)
+        self.camera.frames_per_trigger_zero_for_unlimited = 1
+        self.camera.exposure_time_us = self.camera_settings.get('exposure_time', 200000)
         self.camera.arm(2)
-        self.camera.issue_software_trigger()
         self._bit_depth = self.camera.bit_depth
         self.camera.image_poll_timeout_ms = 0
 
@@ -829,11 +828,28 @@ class CameraDriver(BaseDriver):
     def _acquisition_loop(self):
         while not self._halt_acq.is_set():
             try:
-                frame = self.camera.get_pending_frame_or_null()
-                if frame is not None and self._acquire_img.is_set():
+                while not self._acquire_img.is_set() and not self._halt_acq.is_set():
+                    sleep(0.01)
+
+                prev_frame = None
+                counter = 0
+                
+                while True:
+                    self.camera.issue_software_trigger()
+                    frame = self.camera.get_pending_frame_or_null()
+                    if frame is not None:
+                        counter += 1
+                        prev_frame = frame
+                    
+                    if counter > 1:
+                        break
+
+                frame = prev_frame            
+                if frame is not None:
                     pil_or_numpy_array_image = self._get_image(frame)
                     self._acquire_img.clear()
                     self._image_queue.put_nowait(pil_or_numpy_array_image)
+
             except Full:
                 # No point in keeping this image around when the queue is full, let's skip to the next one
                 pass

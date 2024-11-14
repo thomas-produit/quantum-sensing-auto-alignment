@@ -118,7 +118,7 @@ if __name__ == '__main__':
                                'initial_count': '100',
                                'learner_number': '1',
                                'halt_number': '10',
-                               'bounds': ((-2e-3, 2e-3), (-2000, 2000), (-2000, 2000), (15.46-0.25, 15.46+0.25)),
+                               'bounds': ((-2e-3, 2e-3), (-50, 50), (-50, 50), (15.59-0.25, 15.59+0.25)),
                                'interface': qinterface,
                                'interface_args': ''
                                }
