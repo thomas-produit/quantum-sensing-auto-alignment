@@ -3,85 +3,201 @@
 Author: Tranter Tech
 Date: 2024
 """
-import tkinter as tk
-from PIL import Image, ImageTk
+import pyqtgraph as pg
+import numpy as np
+from multiprocessing import Process, Queue
+from queue import Empty as QueueEmpty
 from threading import Thread, Event
-from queue import Queue, Empty, Full
+from pyqtgraph.Qt import QtCore
 
+class PlottingWindow:
+    def __init__(self, img_queue):
+        self.app = None
+        self.win = None
+        self.layout = None
+        self.imv = None
+        self.img_queue = img_queue
+        # self.update_thread = Thread(target=self._update_plot)
+        self._halt_event = Event()
 
-class LiveViewCanvas(tk.Canvas):
-    def __init__(self, parent, image_queue):
-        self.image_queue = image_queue
-        self._image_width = 0
-        self._image_height = 0
-        tk.Canvas.__init__(self, parent)
-        self.pack()
-        self._get_image()
+    def initialise(self):
+        self.app = pg.mkQApp("ImageView Example")
 
-    def _get_image(self):
-        try:
-            image = self.image_queue.get_nowait()
-            self._image = ImageTk.PhotoImage(master=self, image=image)
-            if (self._image.width() != self._image_width) or (self._image.height() != self._image_height):
-                # resize the canvas to match the new image size
-                self._image_width = self._image.width()
-                self._image_height = self._image.height()
-                self.config(width=self._image_width, height=self._image_height)
-            self.create_image(0, 0, image=self._image, anchor='nw')
-        except Empty:
-            pass
-        self.after(10, self._get_image)
+        self.win = pg.GraphicsLayoutWidget()
 
+        self.app.aboutToQuit.connect(self._close)
 
-class ImageAcquisitionThread(Thread):
-    def __init__(self, camera):
-        super(ImageAcquisitionThread, self).__init__()
-        self._camera = camera
-        self._previous_timestamp = 0
+        self.win.show()
+        self.win.resize(800, 800)
 
-        self._bit_depth = camera.bit_depth
-        self._camera.image_poll_timeout_ms = 0  # Do not want to block for long periods of time
-        self._image_queue = Queue(maxsize=2)
-        self._stop_event = Event()
+        view = self.win.addViewBox()
+        view.setAspectLocked(True)
+        # next_item = self.win.addViewBox()
 
-        # TODO: aaron code
-        self.roi = (0, 1000, 500, 1500)
-        self.gain = 3
-        self.bit_shift = 12
+        self.imv = pg.ImageItem()
+        plot = pg.PlotItem()
+        view.addItem(self.imv)
 
-    def get_output_queue(self):
-        return self._image_queue
+        self.win.addItem(plot)
 
-    def stop(self):
-        self._stop_event.set()
+        X = np.linspace(0, np.pi, 1000)
+        Y = np.sin(X)
+        plot.plot(X, Y)
 
-    def _get_image(self, frame):
-        # no coloring, just scale down image to 8 bpp and place into PIL Image object
-        scaled_image = (frame.image_buffer >> (self._bit_depth - self.bit_shift)) * self.gain
-        xmin, xmax, ymin, ymax = self.roi
-        scale = 0.25
-        new_x = int((xmax - xmin) * scale)
-        new_y = int((ymax - ymin) * scale)
-        img = Image.fromarray(scaled_image[xmin:xmax, ymin:ymax])
-        try:
-            if scale != 1.0:
-                img = img.resize((new_x, new_y))
-        except Exception as e:
-            print(e.args)
+        # Kinesis, LVL 7, Sem 3
 
-        return img
+        self.win.setWindowTitle('pyqtgraph example: ImageView')
+
+        # self.update_thread.start()
+        # self.timer.start(1000)
+
+        self.timer = pg.QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self._update_plot)
+        self.timer.start(100)
+
+        self.run()
 
     def run(self):
-        while not self._stop_event.is_set():
-            try:
-                frame = self._camera.get_pending_frame_or_null()
-                if frame is not None:
-                    pil_image = self._get_image(frame)
-                    self._image_queue.put_nowait(pil_image)
-            except Full:
-                # No point in keeping this image around when the queue is full, let's skip to the next one
-                pass
-            except Exception as error:
-                print("Encountered error: {error}, image acquisition will stop.".format(error=error))
-                break
-        print("Image acquisition has stopped")
+        pg.exec()
+
+    def _close(self):
+        self._halt_event.set()
+        print('Closing!')
+
+    def _update_plot(self):
+        while not self._halt_event.is_set():
+            self.imv.setImage(np.random.uniform(0, 255, (50, 50)))
+
+
+class RealTimePlot():
+    def __init__(self, format_string, queue, append=False, refresh_wait=50, title=''):
+        # # the plotting process
+        self.plot_proc = Process(target=self.start, args=())
+
+        # the place where data will arrive
+        self.data_queue = queue
+
+        # the application instance
+        self.app = pg.mkQApp("Plotting Example")
+
+        self.title = title
+        self.format_string = format_string
+
+        # timer for updating the plot
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.get_update)
+        self.timer.start(50)
+
+        # plotting window
+        self.win = pg.GraphicsLayoutWidget()
+        self.win.resize(1000, 600)
+        #
+        # set antialias to be true
+        pg.setConfigOptions(antialias=True)
+
+        ## Format for the plotting:
+        #   \n          - for new row
+        #   ,           - for new column
+        #   p{name|title}     - plot with a given key 'name' and a title (optional)
+
+        # curve dict
+        self.curves = {}
+
+        # get the rows and max column span
+        rows = self.format_string.split('\n')
+        max_columns = max([len(x.split('{')) - 1 for x in rows])
+        for r in rows:
+            # add a row if we need to
+            if rows.index(r) != 0:
+                self.win.nextRow()
+
+            # find the columns
+            columns = r.split(',')
+            for c in columns:
+
+                # figure out the respective column span
+                col_span = 1
+                if len(columns) == 1:
+                    col_span = max_columns
+
+                # get the name and set the plots appropriately
+                name = c[2:-1].split('|')
+                if len(name) > 1:
+                    self.curves[name[0]] = [{'x': [], 'y': []},
+                                            self.win.addPlot(title=name[1],
+                                                             colspan=col_span).plot()
+                                            ]
+                else:
+                    self.curves[name[0]] = [{'x': [], 'y': []},
+                                            self.win.addPlot(colspan=col_span).plot()
+                                            ]
+
+        self.start()
+
+    def start(self):
+        self.win.show()
+        pg.exec()
+
+    def run(self):
+        self.plot_proc.start()
+
+    def get_update(self):
+        try:
+            # get the new data and concatenate it
+            mode, data_dict, plot = self.data_queue.get(False)
+
+            args = data_dict.get('args', {})
+
+            if mode == 'append':
+                new_x = data_dict.get('x', None)
+                new_y = data_dict.get('y', [])
+
+
+                if new_x is None:
+                    new_x = [i + len(self.curves[plot][0]['y']) for i in range(len(new_y))]
+
+                self.curves[plot][0]['x'] += list(new_x)
+                self.curves[plot][0]['y'] += list(new_y)
+
+                # set the new data
+                self.curves[plot][1].setData(self.curves[plot][0]['x'], self.curves[plot][0]['y'],
+                                            symbolBrush=args.get('symbolBrush', None),
+                                            pen=args.get('pen', 'w'),
+                                            symbolPen=args.get('symbolPen', None),
+                                             )
+                # self.curves[plot][1].setPen(None)
+            elif mode == 'replace':
+                # get the new data and replace it
+                new_x = data_dict.get('x', None)
+                new_y = data_dict.get('y', [])
+
+                if new_x is None:
+                    new_x = [i + len(self.curves[plot][0]['y']) for i in range(len(new_y))]
+
+                self.curves[plot][0]['x'] = list(new_x)
+                self.curves[plot][0]['y'] = list(new_y)
+
+                # set the new data
+                self.curves[plot][1].setData(self.curves[plot][0]['x'], self.curves[plot][0]['y'],
+                                             symbolBrush=args.get('symbolBrush', None),
+                                             pen=args.get('pen', 'w'),
+                                             symbolPen=args.get('symbolPen', None),
+                                             )
+            else:
+                print("'%s' is not a valid command for data handling." % mode)
+        except QueueEmpty:
+            pass
+
+    def get_queue(self):
+        return self.data_queue
+
+
+if __name__ == '__main__':
+    img_queue = Queue()
+    pw = PlottingWindow(img_queue)
+    proc = Process(target=pw.initialise)
+    proc.start()
+    proc.join()
+
+

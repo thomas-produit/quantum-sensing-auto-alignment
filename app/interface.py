@@ -4,7 +4,7 @@ Author: Tranter Tech
 Date: 2024
 """
 import numpy as np
-from app.drivers import KDC101, KIM101, JenaDriver, ZaberDriver, CameraDriver
+from app.drivers import KDC101, KIM101, K10CR, JenaDriver, ZaberDriver, CameraDriver
 import logging
 import session
 from time import sleep
@@ -89,9 +89,19 @@ class QuantumImaging(BaseInterface):
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # signal arm piezos
-        sig_arm_piezo =  KIM101('/dev/ttyUSB3', 'sig_arm_piezo')
-        sig_arm_piezo.initialise(config_dict={})
-        self._actuators.append(sig_arm_piezo)
+        # sig_arm_piezo = KIM101('/dev/ttyUSB3', 'sig_arm_piezo')
+        # sig_arm_piezo.initialise(config_dict={})
+        # self._actuators.append(sig_arm_piezo)
+        # self.log.info(f'Starting {self._actuators[-1].ID} ...')
+
+        sig_arm_horz = KDC101(None, 'sig_arm_horz', tol=1e-4)
+        sig_arm_horz.initialise(config_dict={})
+        self._actuators.append(sig_arm_horz)
+        self.log.info(f'Starting {self._actuators[-1].ID} ...')
+
+        sig_arm_vert = KDC101(None, 'sig_arm_vert', tol=1e-4)
+        sig_arm_vert.initialise(config_dict={})
+        self._actuators.append(sig_arm_vert)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # idler shutter
@@ -110,6 +120,18 @@ class QuantumImaging(BaseInterface):
         z_fine = JenaDriver('/dev/ttyUSB7', 'z_fine')
         z_fine.initialise(config_dict={})
         self._actuators.append(z_fine)
+        self.log.info(f'Starting {self._actuators[-1].ID} ...')
+
+        # HWP - intensity
+        hwp = K10CR('/dev/ttyUSB3', 'HWP')
+        hwp.initialise(config_dict={})
+        self._actuators.append(hwp)
+        self.log.info(f'Starting {self._actuators[-1].ID} ...')
+
+        # QWP - polarisation correction
+        qwp = K10CR('/dev/ttyUSB3', 'QWP')
+        qwp.initialise(config_dict={})
+        self._actuators.append(qwp)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # compile them into a handy dictionary
@@ -146,14 +168,14 @@ class QuantumImaging(BaseInterface):
         # --- Parameter Setting
         # ------------------------------
         # param 0: longitdinal
-        # param 1: piezo axis 1
-        # param 2: piezo axis 2
+        # param 1: Sig arm horizontal
+        # param 2: Sig arm vertical
         # param 3: z coarse
         
         self.actuator_list['longitudinal'].set_parameters(params[0], asynch=True)
         self.actuator_list['z_coarse'].set_parameters(params[3], asynch=True)
-        self.actuator_list['sig_arm_piezo'].set_parameters(params[1], axis=1)
-        self.actuator_list['sig_arm_piezo'].set_parameters(params[2], axis=2)
+        self.actuator_list['sig_arm_horz'].set_parameters(params[1], asynch=True)
+        self.actuator_list['sig_arm_vert'].set_parameters(params[2], asynch=True)
 
         self.actuator_list['longitudinal'].wait_on_actuator()
         self.actuator_list['z_coarse'].wait_on_actuator()

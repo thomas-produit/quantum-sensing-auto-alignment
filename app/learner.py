@@ -326,13 +326,17 @@ class NeuralNetLearner(BaseLearner):
         self.worker.start()
 
     def minimise_function(self):
+        # perform the minimisation in scaled space
         def min_function(X):
-            scaled_in = self.input_scaler.transform(X.reshape(1, -1))
+            # scaled_in = self.input_scaler.transform(X.reshape(1, -1))
+            scaled_in = X.reshape(1, -1)
             y = self.model(scaled_in)
             return y
 
+        # get the Jacobian also in scaled space
         def jac_function(X):
-            scaled_in = self.input_scaler.transform(X.reshape(1, -1))
+            # scaled_in = self.input_scaler.transform(X.reshape(1, -1))
+            scaled_in = X.reshape(1, -1)
             delta = tf.Variable([0.0]*X.size)
             with tf.GradientTape() as tape:
                 y = self.model(scaled_in + delta)
@@ -358,19 +362,35 @@ class NeuralNetLearner(BaseLearner):
         for idx, sa in enumerate(sweep_arr):
             input_arr[:, idx] = sa.flatten()
 
-        outputs = self.model(self.input_scaler.transform(input_arr))
+        outputs = self.output_scaler.inverse_transform(self.model(self.input_scaler.transform(input_arr)))
         outputs_min_idx = np.argmin(outputs)
         X0_min = input_arr[outputs_min_idx]
 
+        # X0_min = np.zeros(5)
         self.log.debug(f'Best f:{round(np.min(outputs), 2)} @ {np.round(X0_min, 2)}')
 
+        X0_min = self.input_scaler.transform(X0_min.reshape(1, -1)).flatten()
+
+        # scale the bounds
+        min_bounds = [x[0] for x in self._memory['bounds']]
+        max_bounds = [x[1] for x in self._memory['bounds']]
+
+        scaled_min = self.input_scaler.transform(np.array(min_bounds).reshape(1, -1))
+        scaled_max = self.input_scaler.transform(np.array(max_bounds).reshape(1, -1))
+
+        new_bounds = []
+        for xmin, xmax in zip(scaled_min.flatten(), scaled_max.flatten()):
+            new_bounds.append((xmin, xmax))
+
         result = so.minimize(min_function, X0_min,
-                             bounds=self._memory['bounds'],
+                             bounds=new_bounds,
                              jac=jac_function,
                              callback=callback.minimise_callback)
 
-        self.log.debug(f'New params: {result.x}.')
-        self._next_params_queue.put(result.x)
+        next_params = self.input_scaler.inverse_transform(result.x.reshape(1, -1)).flatten()
+
+        self.log.debug(f'New params: {next_params}.')
+        self._next_params_queue.put(list(next_params))
 
         self._state = LearnerState.PREDICT
 
