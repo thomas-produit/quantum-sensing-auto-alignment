@@ -9,11 +9,23 @@ from comms.TCP import FIFO
 import logging
 import session
 from threading import Thread, Event
+from multiprocessing import Process
+from multiprocessing import Queue as MPQueue
 from queue import Queue, Empty
 from time import sleep
 import numpy as np
 from datetime import datetime
 import os
+
+# only import the graphical part if we can
+_GRAPHICAL = True
+_PRE_ERRORS = []
+try:
+    from app.graphical import RealTimePlot
+except ImportError as e:
+    _PRE_ERRORS.append(f"Couldn't load graphical library: {e.args}.")
+    _GRAPHICAL = False
+
 
 class Manager:
     def __init__(self, server_instance):
@@ -46,9 +58,25 @@ class Manager:
         self.interface = None
         self.interface_args = None
 
+        # graphical process to be used for plotting
+        self._graphical_proc = None
+        if _GRAPHICAL:
+            self._plot_queue = MPQueue()
+            format_string = "p{cost_hist|Cost Function}\n" \
+                            "p{pred|Predicted vs Actual cost}," \
+                            "p{params|Training Parameters}\n" \
+                            "p{nets|Current Params}," \
+                            "p{best|Best Parameters}\n" \
+                            "p{dist|Distance from best}," \
+                            "p{dist_0|Distance from 0}"
+            self._graphical_proc = Process(target=RealTimePlot, args=(format_string, self._plot_queue))
+            self._scale_func = None
+
         # define the log
         self.log = logging.getLogger('Manager')
         self.log.addHandler(session.display_log_handler)
+        for err in _PRE_ERRORS:
+            self.log.warning(err)
 
     def _initialise_memory(self):
         # live memory components that get updated as we go
@@ -61,6 +89,7 @@ class Manager:
         self._memory['best_parameters'] = []
         self._memory['best_cost'] = None
         self._memory['optimisation_ok'] = False
+        self._memory['graphical'] = _GRAPHICAL
 
         # static configurations for the optimisation (defaults) can be overridden by the user during the initialisation.
         self._optimisation_config['bound_restriction'] = 0.05
@@ -254,6 +283,13 @@ class Manager:
                 self.log.info(f'    -{key}: {value}')
 
             self._memory['bounds'] = self._optimisation_config['bounds']
+
+            # start the graphical interface if we need
+            if self._memory.get('graphical', False):
+                self._graphical_proc.start()
+
+                min, max = list(zip(*self._memory['bounds']))
+                self._scale_func = lambda X: (np.array(X) - np.array(min)) / (np.array(max) - np.array(min))
 
             # start the connections
             self._initialise_connections()
@@ -511,10 +547,15 @@ class Manager:
             if self._memory['best_cost'] is None:
                 self._memory['best_cost'] = cost
                 self._memory['best_parameters'] = next_params
+                self._update_plot(next_params, cost, update_best=True)
             elif cost < self._memory['best_cost']:
                 self.log.info(f'New best cost found: {cost}', extra={'colour': 4})
                 self._memory['best_cost'] = cost
                 self._memory['best_parameters'] = next_params
+                self._update_plot(next_params, cost, update_best=True)
+            else:
+                # plot the new parameters and cost
+                self._update_plot(next_params, cost)
 
         # feedback the best so far
         self.log.info(f"Sampling finished. Best cost observed: {self._memory['best_cost']}")
@@ -574,8 +615,13 @@ class Manager:
                 self._memory['best_parameters'] = next_params
                 runs_since_improvement = 0
                 self._heuristic_tracker.update_best(next_params)
+
+                # plot the new parameters and cost
+                self._update_plot(next_params, cost, update_best=True)
             else:
                 runs_since_improvement += 1
+                # plot the new parameters and cost
+                self._update_plot(next_params, cost)
 
             # kick off a local on the next iteration if we need to
             if runs_since_improvement >= 10:
@@ -602,6 +648,32 @@ class Manager:
             send_fifo.put(f'<SR:{lid}>')
 
         self.log.info('Finished Optimising',  extra={'colour': 4})
+
+    def _update_plot(self, params, cost, update_best=False):
+        # if we can plot, then plot
+        if self._memory.get('graphical', False):
+            self._plot_queue.put(('append', {'y': [cost]}, 'cost_hist'))
+            self._plot_queue.put(('replace', {'x': range(len(params)),
+                                              'y': params,
+                                              'args': {'pen': None, 'symbolBrush': 'b'}},
+                                  'nets'
+                                  ))
+
+            # plot with respect to the center
+            N = float(len(params))
+            dist_0 = np.sum(np.square(self._scale_func([0] * int(N)) - self._scale_func(params))) / N
+            self._plot_queue.put(('append', {'y': [dist_0]},
+                                  'dist_0'))
+
+            # only update the best if we need to
+            if update_best:
+                self._plot_queue.put(('replace', {'x': range(len(params)),
+                                                  'y': params,
+                                                  'args': {'pen': None, 'symbolBrush': 'b'}},
+                                     'best'
+                                      ))
+
+                # distance = np.square(np.array(self._memory['best_parameters']) - np.array(params)).sum()
 
     def _save_models(self, spooler_fifo):
         while not self.manager_halt.is_set():
@@ -659,6 +731,13 @@ class Manager:
 
         self.log.info('Manager closed.')
 
+        if self._graphical_proc is not None:
+            self.log.info('Waiting on graphical process')
+            self._graphical_proc.terminate()
+            try:
+                self._graphical_proc.join()
+            except ValueError:
+                pass
 
 class HeuristicTracker:
     def __init__(self, bounds, best_params, log):
