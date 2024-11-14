@@ -77,13 +77,13 @@ class QuantumImaging(BaseInterface):
         self.log.info('Starting Camera ...')
 
         # Longitudinal
-        long_act = KDC101('/dev/ttyUSB6', 'longitudinal', tol=1e-4)
+        long_act = KDC101('/dev/ttyUSB8', 'longitudinal', tol=1e-4)
         long_act.initialise(config_dict={})
         self._actuators.append(long_act)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # lateral
-        lat_act = KDC101('/dev/ttyUSB5', 'lateral')
+        lat_act = KDC101('/dev/ttyUSB7', 'lateral')
         lat_act.initialise(config_dict={})
         self._actuators.append(lat_act)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
@@ -94,18 +94,18 @@ class QuantumImaging(BaseInterface):
         # self._actuators.append(sig_arm_piezo)
         # self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
-        sig_arm_horz = KDC101(None, 'sig_arm_horz', tol=1e-4)
+        sig_arm_horz = KDC101('/dev/ttyUSB6', 'sig_arm_horz', tol=1e-4)
         sig_arm_horz.initialise(config_dict={})
         self._actuators.append(sig_arm_horz)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
-        sig_arm_vert = KDC101(None, 'sig_arm_vert', tol=1e-4)
+        sig_arm_vert = KDC101('/dev/ttyUSB4', 'sig_arm_vert', tol=1e-4)
         sig_arm_vert.initialise(config_dict={})
         self._actuators.append(sig_arm_vert)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # idler shutter
-        idler_shut = KDC101('/dev/ttyUSB4', 'idler_shutter', tol=1e-4)
+        idler_shut = KDC101('/dev/ttyUSB5', 'idler_shutter', tol=1e-4)
         idler_shut.initialise(config_dict={})
         self._actuators.append(idler_shut)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
@@ -117,22 +117,24 @@ class QuantumImaging(BaseInterface):
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # z fine (Jena)
-        z_fine = JenaDriver('/dev/ttyUSB7', 'z_fine')
+        z_fine = JenaDriver('/dev/ttyUSB2', 'z_fine')
         z_fine.initialise(config_dict={})
         self._actuators.append(z_fine)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # HWP - intensity
-        hwp = K10CR('/dev/ttyUSB3', 'HWP')
+        hwp = K10CR('/dev/ttyUSB1', 'HWP')
         hwp.initialise(config_dict={})
         self._actuators.append(hwp)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
-        # QWP - polarisation correction
-        qwp = K10CR('/dev/ttyUSB3', 'QWP')
-        qwp.initialise(config_dict={})
-        self._actuators.append(qwp)
-        self.log.info(f'Starting {self._actuators[-1].ID} ...')
+        # # QWP - polarisation correction
+        # qwp = K10CR('/dev/ttyUSB3', 'QWP')
+        # qwp.initialise(config_dict={})
+        # self._actuators.append(qwp)
+        # self.log.info(f'Starting {self._actuators[-1].ID} ...')
+
+        # /USB3/ <- Temp control
 
         # compile them into a handy dictionary
         for actu in self._actuators:

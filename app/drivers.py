@@ -884,8 +884,18 @@ class TC038Driver(BaseDriver):
     Driver class for the TC038 Temperature controller / crystal oven (item 8).
     https://pymeasure.readthedocs.io/en/latest/api/instruments/hcp/tc038.html
     """
-    def __init__(self):
+    def __init__(self, address):
         super().__init__()
+
+        self.tc = TC038(adapter=address)
+
+    def change_temp(self, temp):
+        self.tc.setpoint = temp
+
+    def measure_temp(self):
+        return self.tc.temperature
+        
+        
 
 
 class CameraDriver(BaseDriver):
