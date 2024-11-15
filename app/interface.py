@@ -11,9 +11,10 @@ from time import sleep
 import h5py
 from datetime import datetime
 
+
 class BaseInterface:
     def __init__(self):
-        pass
+        self.plot_queue = None
 
     def run_initialisation(self, args=None):
         return True
@@ -21,12 +22,17 @@ class BaseInterface:
     def run_parameters(self, params, args=None):
         pass
 
+    def set_plot(self, queue):
+        self.plot_queue = queue
+
 
 class TestInterface(BaseInterface):
     def __init__(self):
         super(TestInterface, self).__init__()
 
     def run_parameters(self, params, args=''):
+        self.plot_queue.put(('replace', {'y': [np.random.uniform(0, 255, (50, 50))]}, 'fringe_img'))
+
         return self._cost_function(params, args)
 
     def _cost_function(self, params, args):
@@ -51,6 +57,8 @@ class TestInterface(BaseInterface):
         return -20.0 * np.exp(-0.2 * np.sqrt(firstSum / n)) - np.exp(secondSum / n) + 20 + np.exp(1)
 
 
+# import the relevant functions for processing
+from utils.cost_tools import find_circular_FOV, create_circular_mask
 class QuantumImaging(BaseInterface):
     def __init__(self, save_dir=None):
         super().__init__()
@@ -94,11 +102,13 @@ class QuantumImaging(BaseInterface):
         # self._actuators.append(sig_arm_piezo)
         # self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
+        # signal arm, horizontal
         sig_arm_horz = KDC101('/dev/ttyUSB6', 'sig_arm_horz', tol=1e-4)
         sig_arm_horz.initialise(config_dict={})
         self._actuators.append(sig_arm_horz)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
+        # signal arm, vertical
         sig_arm_vert = KDC101('/dev/ttyUSB4', 'sig_arm_vert', tol=1e-4)
         sig_arm_vert.initialise(config_dict={})
         self._actuators.append(sig_arm_vert)
@@ -139,6 +149,13 @@ class QuantumImaging(BaseInterface):
         # compile them into a handy dictionary
         for actu in self._actuators:
             self.actuator_list[actu.ID] = actu
+
+        # grab the arguments and see if we need to run a parameter
+        if args is not None:
+            init_params = args.get('init_params', None)
+
+            if init_params is not None:
+                self.run_parameters(init_params, args={'skip_data': True})
 
         return True
 
@@ -182,14 +199,16 @@ class QuantumImaging(BaseInterface):
         self.actuator_list['longitudinal'].wait_on_actuator()
         self.actuator_list['z_coarse'].wait_on_actuator()
 
+        if args is None:
+            args = {}
+
+        skip_data = bool(args.get('skip_data', False))
+        get_scale = bool(args.get('get_scale', False))
+        scale = bool(args.get('scale', (1, 1)))
+
         # ------------------------------
         # --- Data Acquisition
         # ------------------------------
-
-        skip_data = False
-        if args is not None:
-            skip_data = bool(args)
-
         if not skip_data:
             # wait for the shutter to finish, if it is still moving
             while self.actuator_list['idler_shutter'].async_running.is_set():
@@ -213,25 +232,96 @@ class QuantumImaging(BaseInterface):
             self.actuator_list['idler_shutter'].set_parameters(20e-3)
             self.log.debug('Closed the shutter.')
 
-
             # take an image
             dark_img = np.array(self._camera.get_image(), dtype=np.float32)
 
-            # diff_arr = img_arr - dark_img
-            # _threshold = 1
-            # mask = diff_arr[diff_arr>]
             self.actuator_list['idler_shutter'].set_parameters(0, asynch=True)
 
             grp = self.save_file.create_group(f'run_{self._counter}')
             grp.create_dataset('dark_img', data=dark_img)
             grp.create_dataset('fringes', data=img_arr)
             grp.create_dataset('params', data=params)
-            # fft_diff_arr = np.fft.rfft2(diff_arr, axis=0)
+
+            # plot the various images
+            self.plot_queue.put(('replace', {'y': img_arr[0]}, 'fringe_img'))
+            self.plot_queue.put(('replace', {'y': dark_img}, 'dark_img'))
 
             self._counter += 1
 
-        return np.random.rand()
-        
+            return self._cost(img_arr, dark_img, get_scale, scale)
+
+        # if we skip data, return None
+        return None
+
+    def _cost(self, img, dark_img, get_scale=False, scale=(1, 1)):
+        # Find global FOV
+        # radii_range = (90, 100)
+        # center, radius = find_circular_FOV(dark_img, radii_range)
+
+        raise NotImplementedError()
+        center = (0, 0)
+        radius = 0
+
+        # define the bounds
+        edge_px = 5
+        ymin = center[1] - radius - edge_px
+        ymax = center[1] + radius + edge_px
+        xmin = center[1] - radius - edge_px
+        xmax = center[1] + radius + edge_px
+        height, width = dark_img.shape
+
+        # crop the images
+        cropped_imgs = img[:, ymin:ymax, xmin:xmax]
+        cropped_dark_img = dark_img[ymin:ymax, xmin:xmax]
+        cropped_height, cropped_width = cropped_dark_img.shape
+
+        # create a mask
+        mask = create_circular_mask(height, width, center=center, radius=radius)
+        cropped_mask = mask[ymin:ymax, xmin:xmax]
+
+        # take a fft along the sample dimension (dim 0)
+        which_axis_fft = 0
+        fft = np.abs(np.fft.rfft(cropped_imgs, axis=which_axis_fft, norm='forward'))
+
+        # get the DC component and Amplitude
+        DC_fft = fft[0]  # Smart slicing
+        Amplitude_fft = 2 * np.max(fft[1:], axis=which_axis_fft)
+
+        # calculate visibility
+        Visibility_raw = Amplitude_fft / DC_fft
+
+        # Mask Visibility image to FOV
+        Visibility = np.ma.masked_array(Visibility_raw, mask=cropped_mask)
+        Visibility = np.ma.filled(Visibility, fill_value=0)
+
+        # hard coded ROI
+        ROI_radius = 48.157894736842
+        ROI = (88.3158197, 109.52483491)
+
+        # mask the images
+        ROI_mask_small = create_circular_mask(cropped_height, cropped_width, center=np.flip(ROI), radius=ROI_radius)
+        ROI_mask_big = create_circular_mask(height, width, center=np.flip(ROI), radius=ROI_radius)
+
+        # camera settings
+        Camera_bit_depth = 16
+        Camera_max_value = 2 ** Camera_bit_depth - 1
+
+        Visibility_ROI = np.ma.masked_array(Visibility, mask=ROI_mask_small)
+        Dark_img_ROI = np.ma.masked_array(dark_img, mask=ROI_mask_big)
+
+        # calculate cost components
+        Cost_average = np.ma.sum(Dark_img_ROI) / (Dark_img_ROI.count() * Camera_max_value)
+        Weight_average = 10**-scale[0]
+
+        Cost_visibility = np.ma.average(Visibility_ROI)
+        Weight_visibility = 10**-scale[1]
+
+        cost = - (Weight_average * Cost_average + Weight_visibility * Cost_visibility)
+
+        if get_scale:
+            return Cost_average, Cost_visibility
+        else:
+            return cost
 
 def test():
     logging.basicConfig(level=logging.DEBUG,

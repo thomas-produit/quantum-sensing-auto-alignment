@@ -7,71 +7,23 @@ import pyqtgraph as pg
 import numpy as np
 from multiprocessing import Process, Queue
 from queue import Empty as QueueEmpty
-from threading import Thread, Event
 from pyqtgraph.Qt import QtCore
 
-class PlottingWindow:
-    def __init__(self, img_queue):
-        self.app = None
-        self.win = None
-        self.layout = None
-        self.imv = None
-        self.img_queue = img_queue
-        # self.update_thread = Thread(target=self._update_plot)
-        self._halt_event = Event()
-
-    def initialise(self):
-        self.app = pg.mkQApp("ImageView Example")
-
-        self.win = pg.GraphicsLayoutWidget()
-
-        self.app.aboutToQuit.connect(self._close)
-
-        self.win.show()
-        self.win.resize(800, 800)
-
-        view = self.win.addViewBox()
-        view.setAspectLocked(True)
-        # next_item = self.win.addViewBox()
-
-        self.imv = pg.ImageItem()
-        plot = pg.PlotItem()
-        view.addItem(self.imv)
-
-        self.win.addItem(plot)
-
-        X = np.linspace(0, np.pi, 1000)
-        Y = np.sin(X)
-        plot.plot(X, Y)
-
-        # Kinesis, LVL 7, Sem 3
-
-        self.win.setWindowTitle('pyqtgraph example: ImageView')
-
-        # self.update_thread.start()
-        # self.timer.start(1000)
-
-        self.timer = pg.QtCore.QTimer()
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self._update_plot)
-        self.timer.start(100)
-
-        self.run()
-
-    def run(self):
-        pg.exec()
-
-    def _close(self):
-        self._halt_event.set()
-        print('Closing!')
-
-    def _update_plot(self):
-        while not self._halt_event.is_set():
-            self.imv.setImage(np.random.uniform(0, 255, (50, 50)))
+_DEFAULT_CONFIG = [{'fringe_img': {'type': 'image', 'title': 'Raw Fringe', 'span': 1},
+                    'dark_img': {'type': 'image', 'title': 'Dark', 'span': 1},
+                    'sub_img': {'type': 'image', 'title': 'Subtracted', 'span': 1}},
+                   {'cost_hist': {'type': 'plot', 'title': 'Cost Function'}},
+                   {'pred': {'type': 'plot', 'title': 'Predicted vs Actual cost', 'span': 1},
+                    'params': {'type': 'plot', 'title': 'Training Parameters', 'span': 1},
+                    'dist': {'type': 'plot', 'title': 'Distance from Best', 'span': 1}},
+                   {'nets': {'type': 'plot', 'title': 'Current Parameters', 'span': 1},
+                    'best': {'type': 'plot', 'title': 'Best Parameters', 'span': 1},
+                    'dist_0': {'type': 'plot', 'title': 'Distance from 0', 'span': 1}}
+                   ]
 
 
-class RealTimePlot():
-    def __init__(self, format_string, queue, append=False, refresh_wait=50, title=''):
+class RealTimePlot:
+    def __init__(self, format_dict, queue, refresh_wait=50, title='Real time plot', scale=1.0):
         # # the plotting process
         self.plot_proc = Process(target=self.start, args=())
 
@@ -79,59 +31,55 @@ class RealTimePlot():
         self.data_queue = queue
 
         # the application instance
-        self.app = pg.mkQApp("Plotting Example")
-
+        self.app = pg.mkQApp(title)
         self.title = title
-        self.format_string = format_string
-
-        # timer for updating the plot
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.get_update)
-        self.timer.start(50)
+        self.format_dict = format_dict
 
         # plotting window
         self.win = pg.GraphicsLayoutWidget()
-        self.win.resize(1000, 600)
-        #
+        size = int(1000*scale)
+        self.win.resize(size, size)
+
         # set antialias to be true
         pg.setConfigOptions(antialias=True)
-
-        ## Format for the plotting:
-        #   \n          - for new row
-        #   ,           - for new column
-        #   p{name|title}     - plot with a given key 'name' and a title (optional)
 
         # curve dict
         self.curves = {}
 
         # get the rows and max column span
-        rows = self.format_string.split('\n')
-        max_columns = max([len(x.split('{')) - 1 for x in rows])
-        for r in rows:
-            # add a row if we need to
-            if rows.index(r) != 0:
+        max_columns = max([len(row.keys()) for row in format_dict])
+
+        # loop over all rows
+        for row_idx, row_dict in enumerate(format_dict):
+            # add a new row after the first row
+            if row_idx > 0:
                 self.win.nextRow()
 
-            # find the columns
-            columns = r.split(',')
-            for c in columns:
+            # construct each plot
+            for plot, options in row_dict.items():
+                # pull out plot options
+                plot_type = options.get('type', 'plot')
+                title = options.get('title', '')
+                span = options.get('span', max_columns)
 
-                # figure out the respective column span
-                col_span = 1
-                if len(columns) == 1:
-                    col_span = max_columns
+                if plot_type == 'plot':
+                    # add the plot
+                    self.curves[plot] = [{'x': [], 'y': [], 'type': plot_type},
+                                         self.win.addPlot(title=title, colspan=span).plot()]
+                elif plot_type == 'image':
+                    # add the viewbox first
+                    view = self.win.addViewBox(colspan=span)
+                    view.setAspectLocked(True)
 
-                # get the name and set the plots appropriately
-                name = c[2:-1].split('|')
-                if len(name) > 1:
-                    self.curves[name[0]] = [{'x': [], 'y': []},
-                                            self.win.addPlot(title=name[1],
-                                                             colspan=col_span).plot()
-                                            ]
-                else:
-                    self.curves[name[0]] = [{'x': [], 'y': []},
-                                            self.win.addPlot(colspan=col_span).plot()
-                                            ]
+                    self.imv = pg.ImageItem(title=title)
+                    view.addItem(self.imv)
+
+                    self.curves[plot] = [{'x': [], 'y': [], 'type': plot_type}, self.imv]
+
+        # timer for updating the plot
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.get_update)
+        self.timer.start(refresh_wait)
 
         self.start()
 
@@ -148,42 +96,62 @@ class RealTimePlot():
             mode, data_dict, plot = self.data_queue.get(False)
 
             args = data_dict.get('args', {})
+            options, plot_item = self.curves.get(plot, (None, None))
+
+            # ignore a call to a plot that doesn't exist
+            if plot_item is None:
+                return 1
 
             if mode == 'append':
+                if options.get('type') == 'image':
+                    # appending images not supported
+                    return 1
+
+                # get the data from the dictionary
                 new_x = data_dict.get('x', None)
                 new_y = data_dict.get('y', [])
 
-
+                # run the x-axis longer
                 if new_x is None:
                     new_x = [i + len(self.curves[plot][0]['y']) for i in range(len(new_y))]
 
-                self.curves[plot][0]['x'] += list(new_x)
-                self.curves[plot][0]['y'] += list(new_y)
+                # update the data
+                options['x'] += list(new_x)
+                options['y'] += list(new_y)
 
                 # set the new data
-                self.curves[plot][1].setData(self.curves[plot][0]['x'], self.curves[plot][0]['y'],
-                                            symbolBrush=args.get('symbolBrush', None),
-                                            pen=args.get('pen', 'w'),
-                                            symbolPen=args.get('symbolPen', None),
-                                             )
-                # self.curves[plot][1].setPen(None)
+                plot_item.setData(options['x'], options['y'],
+                                  symbolBrush=args.get('symbolBrush', None),
+                                  pen=args.get('pen', 'w'),
+                                  symbolPen=args.get('symbolPen', None))
+
             elif mode == 'replace':
                 # get the new data and replace it
                 new_x = data_dict.get('x', None)
                 new_y = data_dict.get('y', [])
 
-                if new_x is None:
-                    new_x = [i + len(self.curves[plot][0]['y']) for i in range(len(new_y))]
+                options, plot_item = self.curves.get(plot, (None, None))
 
-                self.curves[plot][0]['x'] = list(new_x)
-                self.curves[plot][0]['y'] = list(new_y)
+                # dump if we don't exist
+                if plot_item is None:
+                    return 1
+
+                if new_x is None and options['type'] == 'plot':
+                    new_x = [i + len(self.curves[plot][0]['y']) for i in range(len(new_y))]
+                    options['x'] = list(new_x)
+
+                # always get y data, but only x for the plot type
+                options['y'] = list(new_y)
 
                 # set the new data
-                self.curves[plot][1].setData(self.curves[plot][0]['x'], self.curves[plot][0]['y'],
-                                             symbolBrush=args.get('symbolBrush', None),
-                                             pen=args.get('pen', 'w'),
-                                             symbolPen=args.get('symbolPen', None),
-                                             )
+                if options['type'] == 'plot':
+                    plot_item.setData(options['x'], options['y'],
+                                      symbolBrush=args.get('symbolBrush', None),
+                                      pen=args.get('pen', 'w'),
+                                      symbolPen=args.get('symbolPen', None))
+                elif options['type'] == 'image':
+                    img_data = np.array(options['y']).squeeze()
+                    plot_item.setImage(img_data)
             else:
                 print("'%s' is not a valid command for data handling." % mode)
         except QueueEmpty:
@@ -194,10 +162,19 @@ class RealTimePlot():
 
 
 if __name__ == '__main__':
-    img_queue = Queue()
-    pw = PlottingWindow(img_queue)
-    proc = Process(target=pw.initialise)
-    proc.start()
-    proc.join()
+    _plot_queue = Queue()
+    _graphical_proc = Process(target=RealTimePlot, args=(_DEFAULT_CONFIG, _plot_queue))
+    _graphical_proc.start()
 
+    for i in range(100):
+        _plot_queue.put(('append', {'y': [np.random.rand()]}, 'cost_hist'))
+        _plot_queue.put(('replace', {'y': [np.random.uniform(0, 255, (50, 50))]}, 'fringe_img'))
 
+        img_space = np.repeat(np.linspace(0, np.pi * 2, 50).reshape(1, -1), 50, 0)
+
+        _plot_queue.put(('replace', {'y': np.sin(img_space + i / 10)}, 'dark_img'))
+        _plot_queue.put(('replace', {'y': np.cos(img_space + i / 10)}, 'sub_img'))
+        _plot_queue.put(('replace', {'y': np.random.uniform(0, 255, 4),
+                                     'args': {'pen': None, 'symbolBrush': 'b'}}, 'best'))
+
+    _graphical_proc.join()

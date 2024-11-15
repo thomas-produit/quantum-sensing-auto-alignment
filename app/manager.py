@@ -21,7 +21,7 @@ import os
 _GRAPHICAL = True
 _PRE_ERRORS = []
 try:
-    from app.graphical import RealTimePlot
+    from app.graphical import RealTimePlot, _DEFAULT_CONFIG
 except ImportError as e:
     _PRE_ERRORS.append(f"Couldn't load graphical library: {e.args}.")
     _GRAPHICAL = False
@@ -60,16 +60,9 @@ class Manager:
 
         # graphical process to be used for plotting
         self._graphical_proc = None
+        self._plot_queue = MPQueue()
         if _GRAPHICAL:
-            self._plot_queue = MPQueue()
-            format_string = "p{cost_hist|Cost Function}\n" \
-                            "p{pred|Predicted vs Actual cost}," \
-                            "p{params|Training Parameters}\n" \
-                            "p{nets|Current Params}," \
-                            "p{best|Best Parameters}\n" \
-                            "p{dist|Distance from best}," \
-                            "p{dist_0|Distance from 0}"
-            self._graphical_proc = Process(target=RealTimePlot, args=(format_string, self._plot_queue))
+            self._graphical_proc = Process(target=RealTimePlot, args=(_DEFAULT_CONFIG, self._plot_queue))
             self._scale_func = None
 
         # define the log
@@ -271,6 +264,8 @@ class Manager:
         if self.interface is None:
             self.log.error('No interface specified. Cannot start optimisation.')
             return 1
+
+        self.interface.plot_queue = self._plot_queue
 
         # check whether we can start the optimisation
         config_ok = self.check_values()
@@ -550,9 +545,9 @@ class Manager:
                 self._update_plot(next_params, cost, update_best=True)
             elif cost < self._memory['best_cost']:
                 self.log.info(f'New best cost found: {cost}', extra={'colour': 4})
+                self._update_plot(next_params, cost, update_best=True)
                 self._memory['best_cost'] = cost
                 self._memory['best_parameters'] = next_params
-                self._update_plot(next_params, cost, update_best=True)
             else:
                 # plot the new parameters and cost
                 self._update_plot(next_params, cost)
@@ -662,8 +657,11 @@ class Manager:
             # plot with respect to the center
             N = float(len(params))
             dist_0 = np.sum(np.square(self._scale_func([0] * int(N)) - self._scale_func(params))) / N
-            self._plot_queue.put(('append', {'y': [dist_0]},
-                                  'dist_0'))
+            self._plot_queue.put(('append', {'y': [dist_0]}, 'dist_0'))
+
+            # plot with respect to the best know params
+            distance = np.square(np.array(self._memory['best_parameters']) - np.array(params)).sum()
+            self._plot_queue.put(('append', {'y': [distance]}, 'dist'))
 
             # only update the best if we need to
             if update_best:
@@ -672,8 +670,6 @@ class Manager:
                                                   'args': {'pen': None, 'symbolBrush': 'b'}},
                                      'best'
                                       ))
-
-                # distance = np.square(np.array(self._memory['best_parameters']) - np.array(params)).sum()
 
     def _save_models(self, spooler_fifo):
         while not self.manager_halt.is_set():
@@ -719,10 +715,13 @@ class Manager:
         self.log.info('Saving models complete.')
 
     def close(self):
+        # save the data
         self.save()
 
+        # close the server
         self.server.close()
 
+        # tell the manager threads to halt and wait for them
         self.manager_halt.set()
         for key, (thread, _) in self.threads.items():
             self.log.info(f'Waiting on [{key}] ...')
@@ -731,6 +730,7 @@ class Manager:
 
         self.log.info('Manager closed.')
 
+        # wait for the graphical process if it exists
         if self._graphical_proc is not None:
             self.log.info('Waiting on graphical process')
             self._graphical_proc.terminate()
@@ -738,6 +738,8 @@ class Manager:
                 self._graphical_proc.join()
             except ValueError:
                 pass
+
+        self.log.info('Process halted :)', extra={'colour': 4})
 
 class HeuristicTracker:
     def __init__(self, bounds, best_params, log):
