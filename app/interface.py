@@ -204,7 +204,7 @@ class QuantumImaging(BaseInterface):
 
         skip_data = bool(args.get('skip_data', False))
         get_scale = bool(args.get('get_scale', False))
-        scale = bool(args.get('scale', (1, 1)))
+        scale = args.get('scale', (1, 1))
 
         # ------------------------------
         # --- Data Acquisition
@@ -243,8 +243,9 @@ class QuantumImaging(BaseInterface):
             grp.create_dataset('params', data=params)
 
             # plot the various images
-            self.plot_queue.put(('replace', {'y': img_arr[0]}, 'fringe_img'))
-            self.plot_queue.put(('replace', {'y': dark_img}, 'dark_img'))
+            # TODO: Not hotfixes please
+            self.plot_queue.put(('replace', {'y': np.clip(img_arr[0], 0, 800)}, 'fringe_img'))
+            self.plot_queue.put(('replace', {'y': np.clip(dark_img, 0, 800)}, 'dark_img'))
 
             self._counter += 1
 
@@ -254,20 +255,15 @@ class QuantumImaging(BaseInterface):
         return None
 
     def _cost(self, img, dark_img, get_scale=False, scale=(1, 1)):
-        # Find global FOV
-        # radii_range = (90, 100)
-        # center, radius = find_circular_FOV(dark_img, radii_range)
-
-        raise NotImplementedError()
-        center = (0, 0)
-        radius = 0
+        radius = 48.157894736842
+        center = (88.3158197, 109.52483491)
 
         # define the bounds
         edge_px = 5
-        ymin = center[1] - radius - edge_px
-        ymax = center[1] + radius + edge_px
-        xmin = center[1] - radius - edge_px
-        xmax = center[1] + radius + edge_px
+        ymin = int(center[1] - radius - edge_px)
+        ymax = int(center[1] + radius + edge_px)
+        xmin = int(center[1] - radius - edge_px)
+        xmax = int(center[1] + radius + edge_px)
         height, width = dark_img.shape
 
         # crop the images
@@ -295,12 +291,12 @@ class QuantumImaging(BaseInterface):
         Visibility = np.ma.filled(Visibility, fill_value=0)
 
         # hard coded ROI
-        ROI_radius = 48.157894736842
-        ROI = (88.3158197, 109.52483491)
+        # ROI_radius = 48.157894736842
+        # ROI = (88.3158197, 109.52483491)
 
         # mask the images
-        ROI_mask_small = create_circular_mask(cropped_height, cropped_width, center=np.flip(ROI), radius=ROI_radius)
-        ROI_mask_big = create_circular_mask(height, width, center=np.flip(ROI), radius=ROI_radius)
+        ROI_mask_small = create_circular_mask(cropped_height, cropped_width, center=np.flip(center), radius=radius)
+        ROI_mask_big = create_circular_mask(height, width, center=np.flip(center), radius=radius)
 
         # camera settings
         Camera_bit_depth = 16
@@ -311,10 +307,10 @@ class QuantumImaging(BaseInterface):
 
         # calculate cost components
         Cost_average = np.ma.sum(Dark_img_ROI) / (Dark_img_ROI.count() * Camera_max_value)
-        Weight_average = 10**-scale[0]
+        Weight_average = 10**scale[0]
 
         Cost_visibility = np.ma.average(Visibility_ROI)
-        Weight_visibility = 10**-scale[1]
+        Weight_visibility = 10**scale[1]
 
         cost = - (Weight_average * Cost_average + Weight_visibility * Cost_visibility)
 
