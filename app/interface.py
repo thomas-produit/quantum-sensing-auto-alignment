@@ -254,14 +254,16 @@ class QuantumImaging(BaseInterface):
         # if we skip data, return None
         return None
 
-    def _cost(self, img, dark_img, get_scale=False, scale=(1, 1)):
-        radius = 48.157894736842
-        center = (88.3158197, 109.52483491)
+    def _cost(self, img_in, dark_img_in, get_scale=False, scale=(1, 1)):
+        img = np.copy(img_in)
+        dark_img = np.copy(dark_img_in)
+        radius = 55
+        center = (145, 125)
 
         # define the bounds
         edge_px = 5
-        ymin = int(center[1] - radius - edge_px)
-        ymax = int(center[1] + radius + edge_px)
+        ymin = int(center[0] - radius - edge_px)
+        ymax = int(center[0] + radius + edge_px)
         xmin = int(center[1] - radius - edge_px)
         xmax = int(center[1] + radius + edge_px)
         height, width = dark_img.shape
@@ -269,10 +271,9 @@ class QuantumImaging(BaseInterface):
         # crop the images
         cropped_imgs = img[:, ymin:ymax, xmin:xmax]
         cropped_dark_img = dark_img[ymin:ymax, xmin:xmax]
-        cropped_height, cropped_width = cropped_dark_img.shape
 
         # create a mask
-        mask = create_circular_mask(height, width, center=center, radius=radius)
+        mask = create_circular_mask(height, width, center=center, radius=radius * 1.0)
         cropped_mask = mask[ymin:ymax, xmin:xmax]
 
         # take a fft along the sample dimension (dim 0)
@@ -290,26 +291,19 @@ class QuantumImaging(BaseInterface):
         Visibility = np.ma.masked_array(Visibility_raw, mask=cropped_mask)
         Visibility = np.ma.filled(Visibility, fill_value=0)
 
-        # hard coded ROI
-        # ROI_radius = 48.157894736842
-        # ROI = (88.3158197, 109.52483491)
-
-        # mask the images
-        ROI_mask_small = create_circular_mask(cropped_height, cropped_width, center=np.flip(center), radius=radius)
-        ROI_mask_big = create_circular_mask(height, width, center=np.flip(center), radius=radius)
+        ROI_mask_big = create_circular_mask(height, width, center=center, radius=radius)
 
         # camera settings
         Camera_bit_depth = 16
         Camera_max_value = 2 ** Camera_bit_depth - 1
 
-        Visibility_ROI = np.ma.masked_array(Visibility, mask=ROI_mask_small)
         Dark_img_ROI = np.ma.masked_array(dark_img, mask=ROI_mask_big)
 
         # calculate cost components
         Cost_average = np.ma.sum(Dark_img_ROI) / (Dark_img_ROI.count() * Camera_max_value)
         Weight_average = 10**scale[0]
 
-        Cost_visibility = np.ma.average(Visibility_ROI)
+        Cost_visibility = np.ma.average(Visibility)
         Weight_visibility = 10**scale[1]
 
         cost = - (Weight_average * Cost_average + Weight_visibility * Cost_visibility)
