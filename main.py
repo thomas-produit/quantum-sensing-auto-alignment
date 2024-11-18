@@ -111,15 +111,21 @@ if __name__ == '__main__':
 
         qinterface = QuantumImaging('./data/sampling_20241115.h5')
 
+        init_params = [-7e-4, -1.35e-4, -3.4e-5, 15.50]
+        bounds = [[-1e-3, 1e-3], [-4e-5, 4e-5], [-4e-5, 4e-5], [-0.02, 0.02]]
+        new_bounds = []
+        for ip, bnd in zip(init_params, bounds):
+            new_bounds.append(tuple([b+ip for b in bnd]))
+
         # declare the manager to run the optimisation
         manager = Manager(server)
         optimisation_config = {'bound_restriction': '0.05',
                                'initial_count': '100',
                                'learner_number': '1',
                                'halt_number': '10',
-                               'bounds': ((-1e-3, 1e-3), (-4e-5, 4e-5), (-4e-5, 4e-5), (15.48-0.02, 15.48+0.02)),
+                               'bounds': tuple(new_bounds),
                                'interface': qinterface,
-                               'interface_args': {'scale': (3, 2), 'init_params': [0, 0, 0, 15.48]}
+                               'interface_args': {'scale': (3, 2), 'init_params': init_params}
                                }
 
         # optimisation_config = {'bound_restriction': '0.05',

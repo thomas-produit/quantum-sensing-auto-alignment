@@ -103,13 +103,13 @@ class QuantumImaging(BaseInterface):
         # self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # signal arm, horizontal
-        sig_arm_horz = KDC101('/dev/ttyUSB6', 'sig_arm_horz', tol=1e-4)
+        sig_arm_horz = KDC101('/dev/ttyUSB4', 'sig_arm_horz', tol=1e-4)
         sig_arm_horz.initialise(config_dict={})
         self._actuators.append(sig_arm_horz)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # signal arm, vertical
-        sig_arm_vert = KDC101('/dev/ttyUSB4', 'sig_arm_vert', tol=1e-4)
+        sig_arm_vert = KDC101('/dev/ttyUSB6', 'sig_arm_vert', tol=1e-4)
         sig_arm_vert.initialise(config_dict={})
         self._actuators.append(sig_arm_vert)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')

@@ -41,7 +41,8 @@ for device_str in _DEVICE_LIST:
         elif device_str == 'jena':
             from app.driver_libs.jena import NV40
         elif device_str == 'tc038':
-            from pymeasure.instruments.hcp import TC038
+            from instruments.hcp import TC038
+            from instruments.util_fns import split_unit_str
         elif device_str == 'thorlabs_camera':
             from thorlabs_tsi_sdk.tl_camera import TLCameraSDK
 
@@ -882,19 +883,63 @@ class XeryonDriver(BaseDriver):
 class TC038Driver(BaseDriver):
     """
     Driver class for the TC038 Temperature controller / crystal oven (item 8).
-    https://pymeasure.readthedocs.io/en/latest/api/instruments/hcp/tc038.html
+    https://github.com/instrumentkit/InstrumentKit/blob/main/src/instruments/hcp/tc038.py
     """
-    def __init__(self, address):
+    def __init__(self, address, poll_delay=3.0, observations_required=4):
         super().__init__()
 
-        self.tc = TC038(adapter=address)
+        self.tc = TC038.open_serial(address)
+        self.bounds = (50.0, 100.0)
+        self.tol = 0.0
+        self.poll_delay = poll_delay
+        self.observations_required = observations_required
 
-    def change_temp(self, temp):
-        self.tc.setpoint = temp
+        self.log = logging.getLogger(f'Controller:TC038')
+        self.log.addHandler(session.display_log_handler)
+
+    def change_temp(self, temp, asynch=False):
+        try:
+            new_temp = float(temp)
+            # clip the temperature
+            new_temp = max(min(new_temp, self.bounds[1]), self.bounds[0])
+
+            if new_temp != float(temp):
+                self.log.warning(f'Temperature was coerced to bounds: {self.bounds}')
+
+            if split_unit_str(self.tc.setpoint)[0] == new_temp:
+                self.log.info('Value already set.')
+                return
+
+            self.tc.setpoint = new_temp
+            if not asynch:
+                self._monitor_temp()
+        except ValueError:
+            self.log.error(f'Error converting temperature {temp} to a float.')
 
     def measure_temp(self):
-        return self.tc.temperature
-        
+        # get the temperature
+        return split_unit_str(self.tc.temperature)[0]
+    
+    def _monitor_temp(self):
+        temp_reached = False
+        observed = 0
+        while not temp_reached:
+            current_temp = self.measure_temp()
+            set_temp = split_unit_str(self.tc.setpoint)[0]
+            self.log.debug(f'Current T:{current_temp} - Set T:{set_temp} - obs:{observed}')
+            # print(f'Current T:{current_temp} - Set T:{set_temp} - obs:{observed}')
+
+            if abs(current_temp - set_temp) <= self.tol:
+                observed += 1
+
+            if observed > self.observations_required:
+                temp_reached = True
+            else:
+                # sleep until the next measurement
+                sleep(self.poll_delay)
+
+        self.log.info("Target temperature reached.")
+
         
 
 
@@ -1004,9 +1049,9 @@ def main():
     pass
     # time to define some tests
     # _LOG.info('Starting a device ... ')
-    # # stage_0 = KDC101('/dev/ttyUSB5', 'test')
+    # stage_0 = KDC101('/dev/ttyUSB5', 'test')
     # stage_0 = ZaberDriver('/dev/ttyUSB0', 'test')
-    #
+    
     # while True:
     #     x = input('>')
     #     if x == 'q':
@@ -1022,5 +1067,5 @@ def main():
     #             stage_0.set_parameters(x_pos)
     #         except ValueError as e:
     #             _LOG.error(f'Could not convert {x} to float.')
-    #
+    
     # stage_0.shutdown()
