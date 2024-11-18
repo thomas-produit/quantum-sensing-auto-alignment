@@ -14,7 +14,11 @@ from PIL import Image
 
 # get the logs
 _LOG = logging.getLogger('Drivers')
-_LOG.addHandler(session.display_log_handler)
+if session.display_log_handler is not None:
+    _LOG.addHandler(session.display_log_handler)
+else:
+    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(asctime)s:%(name)s:%(module)s:%(message)s')
+
 # supress numba as it is too noisey
 numba_logger = logging.getLogger('numba')
 numba_logger.setLevel(logging.WARNING)

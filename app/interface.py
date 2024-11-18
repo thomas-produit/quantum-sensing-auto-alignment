@@ -58,7 +58,7 @@ class TestInterface(BaseInterface):
 
 
 # import the relevant functions for processing
-from utils.cost_tools import find_circular_FOV, create_circular_mask
+from utils.cost_tools import create_circular_mask, compute_zernike_decomposition, cost_evaluation, RZern
 class QuantumImaging(BaseInterface):
     def __init__(self, save_dir=None):
         super().__init__()
@@ -76,6 +76,8 @@ class QuantumImaging(BaseInterface):
         self.save_file = h5py.File(save_dir, 'w')
 
         self._counter = 0
+        self.dark_img = None
+        self.zernike_object = None
 
     def run_initialisation(self, args=None):
         # Camera init
@@ -154,10 +156,31 @@ class QuantumImaging(BaseInterface):
         if args is not None:
             init_params = args.get('init_params', None)
 
+            # calculate the zernike methods
+            if args.get('cost_definition', '') == 'zernike':
+                self._start_zernike()
+
+            # run the initial parameters if we have them
             if init_params is not None:
-                self.run_parameters(init_params, args={'skip_data': True})
+                self.run_parameters(init_params, args={'skip_data': False,
+                                                       'use_shutter': True,
+                                                       'fringe_steps': 0})
 
         return True
+
+    def _start_zernike(self):
+        # radial order that we will fit to
+        radial_order = 10
+        self.zernike_object = RZern(radial_order)
+
+        # Hard coded
+        L, K = 120, 120
+
+        ddx = np.linspace(-1.0, 1.0, K)
+        ddy = np.linspace(-1.0, 1.0, L)
+        xv, yv = np.meshgrid(ddx, ddy)
+
+        self.zernike_object.make_cart_grid(xv, yv)
 
     def test_actuators(self):
         actuator = self.actuator_list['longitudinal']
@@ -204,7 +227,11 @@ class QuantumImaging(BaseInterface):
 
         skip_data = bool(args.get('skip_data', False))
         get_scale = bool(args.get('get_scale', False))
+        take_dark = bool(args.get('take_dark', False))
         scale = args.get('scale', (1, 1))
+        use_shutter = bool(args.get('use_shutter', False))
+        fringe_steps = args.get('fringe_steps', 20)
+        cost_definition = args.get('cost_definition', '')
 
         # ------------------------------
         # --- Data Acquisition
@@ -215,13 +242,18 @@ class QuantumImaging(BaseInterface):
                 sleep(0.01)
 
             # open the shutter
-            self.actuator_list['idler_shutter'].set_parameters(0)
-            self.log.debug('Opened the shutter.')
+            if use_shutter:
+                self.actuator_list['idler_shutter'].set_parameters(0)
+                self.log.debug('Opened the shutter.')
 
             img_list = []
-            _steps = 20
+            _steps = fringe_steps
             for step in np.linspace(0, 3, _steps):
                 self.actuator_list['z_fine'].set_parameters(step)
+                new_img = np.array(self._camera.get_image(), dtype=np.float32)
+                img_list.append(new_img)
+
+            if _steps == 0:
                 new_img = np.array(self._camera.get_image(), dtype=np.float32)
                 img_list.append(new_img)
             
@@ -229,32 +261,40 @@ class QuantumImaging(BaseInterface):
             self.log.debug(f'Acquired {_steps} steps and returned {img_arr.shape} array.')
 
             # close the shutter (20mm = closed)
-            self.actuator_list['idler_shutter'].set_parameters(20e-3)
-            self.log.debug('Closed the shutter.')
+            if use_shutter:
+                self.actuator_list['idler_shutter'].set_parameters(20e-3)
+                self.log.debug('Closed the shutter.')
 
             # take an image
-            dark_img = np.array(self._camera.get_image(), dtype=np.float32)
+            if use_shutter or take_dark:
+                self.dark_img = np.array(self._camera.get_image(), dtype=np.float32)
 
-            self.actuator_list['idler_shutter'].set_parameters(0, asynch=True)
+            if use_shutter:
+                self.actuator_list['idler_shutter'].set_parameters(0, asynch=True)
 
             grp = self.save_file.create_group(f'run_{self._counter}')
-            grp.create_dataset('dark_img', data=dark_img)
+            if take_dark or use_shutter:
+                grp.create_dataset('dark_img', data=self.dark_img)
             grp.create_dataset('fringes', data=img_arr)
             grp.create_dataset('params', data=params)
 
             # plot the various images
-            # TODO: Not hotfixes please
-            self.plot_queue.put(('replace', {'y': np.clip(img_arr[0], 0, 800)}, 'fringe_img'))
-            self.plot_queue.put(('replace', {'y': np.clip(dark_img, 0, 800)}, 'dark_img'))
+            self.plot_queue.put(('replace', {'y': np.clip(img_arr[0], 0, 400)}, 'fringe_img'))
+            self.plot_queue.put(('replace', {'y': np.clip(self.dark_img, 0, 400)}, 'dark_img'))
 
             self._counter += 1
 
-            return self._cost(img_arr, dark_img, get_scale, scale)
+            if cost_definition == 'visibility':
+                return self._cost_visibility(img_arr, self.dark_img, get_scale, scale)
+            elif cost_definition == 'std':
+                return self._cost_std(img_arr)
+            elif cost_definition == 'zernike':
+                return self._cost_std(img_arr)
 
         # if we skip data, return None
         return None
 
-    def _cost(self, img_in, dark_img_in, get_scale=False, scale=(1, 1)):
+    def _cost_visibility(self, img_in, dark_img_in, get_scale=False, scale=(1, 1)):
         img = np.copy(img_in)
         dark_img = np.copy(dark_img_in)
         radius = 55
@@ -312,6 +352,47 @@ class QuantumImaging(BaseInterface):
             return Cost_average, Cost_visibility
         else:
             return cost
+
+    def _cost_std(self, img_in):
+        img = np.copy(img_in)
+        dark_img = np.copy(self.dark_img)
+        radius = 55
+        center = (145, 125)
+
+        # define the bounds
+        edge_px = 5
+        ymin = int(center[0] - radius - edge_px)
+        ymax = int(center[0] + radius + edge_px)
+        xmin = int(center[1] - radius - edge_px)
+        xmax = int(center[1] + radius + edge_px)
+
+        # crop the images
+        cropped_imgs = img[:, ymin:ymax, xmin:xmax]
+        cropped_dark_img = dark_img[ymin:ymax, xmin:xmax]
+
+        cost = - np.std(cropped_imgs[0] - cropped_dark_img)
+        return cost
+
+    def _cost_zernike(self, img_in):
+        img = np.copy(img_in)
+        dark_img = np.copy(self.dark_img)
+        radius = 55
+        center = (145, 125)
+
+        # define the bounds
+        edge_px = 5
+        ymin = int(center[0] - radius - edge_px)
+        ymax = int(center[0] + radius + edge_px)
+        xmin = int(center[1] - radius - edge_px)
+        xmax = int(center[1] + radius + edge_px)
+
+        # crop the images
+        cropped_imgs = img[:, ymin:ymax, xmin:xmax]
+        cropped_dark_img = dark_img[ymin:ymax, xmin:xmax]
+
+        zdecomp = compute_zernike_decomposition(cropped_imgs[0], self.zernike_object)
+        cost = cost_evaluation(zdecomp)
+        return cost
 
 def test():
     logging.basicConfig(level=logging.DEBUG,

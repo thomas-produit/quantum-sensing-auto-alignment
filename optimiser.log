@@ -20503,3 +20503,7 @@ INFO:2024-11-18 10:20:49,547:QIInterface:interface:Shutting down HWP.
 INFO:2024-11-18 10:20:49,565:Camera:drivers:Image acquisition halted.
 INFO:2024-11-18 10:51:16,730:Main:main:Specified main.py as driver test.
 INFO:2024-11-18 10:51:16,730:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038', 'thorlabs_camera']
+INFO:2024-11-18 18:16:48,057:Main:main:Specified main.py as driver test.
+INFO:2024-11-18 18:16:48,057:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038', 'thorlabs_camera']
+INFO:2024-11-18 18:17:00,631:Main:main:Specified main.py as driver test.
+INFO:2024-11-18 18:17:00,631:Main:main:Devices in config: ['thorlabs', 'zaber', 'xeryon', 'jena', 'tc038', 'thorlabs_camera']
