@@ -14,10 +14,10 @@ from PIL import Image
 
 # get the logs
 _LOG = logging.getLogger('Drivers')
-if session.display_log_handler is not None:
-    _LOG.addHandler(session.display_log_handler)
-else:
-    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(asctime)s:%(name)s:%(module)s:%(message)s')
+# if session.display_log_handler is not None:
+#     _LOG.addHandler(session.display_log_handler)
+# else:
+#     logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(asctime)s:%(name)s:%(module)s:%(message)s')
 
 # supress numba as it is too noisey
 numba_logger = logging.getLogger('numba')
@@ -532,7 +532,7 @@ class ZaberDriver(BaseDriver):
         self.log.addHandler(session.display_log_handler)
         self.async_running = Event()
 
-        # default units to use TODO:check if correct
+        # default units to use
         self.units = zm.Units.LENGTH_MILLIMETRES
 
     def initialise(self, config_dict={}):
@@ -795,9 +795,8 @@ class XeryonDriver(BaseDriver):
         self.log.addHandler(session.display_log_handler)
         self.async_running = Event()
 
-        # TODO: Confirm this is a good choice
         self.units = Xeryon.Units.mu
-        self.speed = 10     # this is in self.units/s. TODO: confirm good value
+        self.speed = 10     # this is in self.units/s.
         self.verbose = True
 
     def initialise(self):

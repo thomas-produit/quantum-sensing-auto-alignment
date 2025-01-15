@@ -385,7 +385,8 @@ class NeuralNetLearner(BaseLearner):
         result = so.minimize(min_function, X0_min,
                              bounds=new_bounds,
                              jac=jac_function,
-                             callback=callback.minimise_callback)
+                             callback=callback.minimise_callback,
+                             tol=self._memory['learner_min_tol'])
 
         next_params = self.input_scaler.inverse_transform(result.x.reshape(1, -1)).flatten()
 

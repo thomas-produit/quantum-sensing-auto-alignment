@@ -69,11 +69,16 @@ class QuantumImaging(BaseInterface):
         self.log = logging.getLogger('QIInterface')
         self.log.addHandler(session.display_log_handler)
 
-        # TODO: Error check this
-        if save_dir is None:
-            now_str = datetime.now().strftime('%Y%m%d_%H-%M-%S')
-            save_dir = f'./data/{now_str}_data.h5'
-        self.save_file = h5py.File(save_dir, 'w')
+        # Attempt to open the save file
+        try:
+            if save_dir is None:
+                now_str = datetime.now().strftime('%Y%m%d_%H-%M-%S')
+                save_dir = f'./data/{now_str}_data.h5'
+            self.save_file = h5py.File(save_dir, 'w')
+        except OSError as e:
+            error_msg = f'Could not open the data file \'{save_dir}\': {e.args}.'
+            self.log.error(error_msg)
+            raise RuntimeError(error_msg)
 
         self._counter = 0
         self.dark_img = None

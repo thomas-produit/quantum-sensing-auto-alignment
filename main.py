@@ -3,8 +3,11 @@ Optimiser codebase: v0.1
 Author: Tranter Tech
 Date: 2024
 """
+import io
+import sys
+
 import session
-from utils.Tools import DisplayLogHandler, load_config, StdOutLogHandler
+from utils.Tools import DisplayLogHandler, load_config, StdOutLogHandler, ErrorWrapper
 from app.display import MainDisplay
 from app.manager import Manager
 from app.interface import TestInterface, QuantumImaging
@@ -45,8 +48,13 @@ args = parser.parse_args()
 logging.basicConfig(level=logging.DEBUG,
                     filename='optimiser.log',
                     format='%(levelname)s:%(asctime)s:%(name)s:%(module)s:%(message)s')
+
 _LOG = logging.getLogger('Main')
-_LOG.addHandler(session.display_log_handler)
+
+# wrap the stderr so we can capture it properly
+err_file = open('./stderr.txt', 'w+')
+err_wrapper = ErrorWrapper(err_file, _LOG)
+sys.stderr = err_wrapper
 
 if __name__ == '__main__':
     _CONFIG = load_config(_LOG)
@@ -109,36 +117,44 @@ if __name__ == '__main__':
         # declare the TCP server, the manager will start it
         server = TCP.Server(_CONFIG)
 
-        qinterface = QuantumImaging('./data/sampling_20241118.h5')
-
-        init_params = [-7e-4, -1.35e-4, -3.4e-5, 15.50]
-        bounds = [[-1e-3, 1e-3], [-4e-5, 4e-5], [-4e-5, 4e-5], [-0.02, 0.02]]
-        new_bounds = []
-        for ip, bnd in zip(init_params, bounds):
-            new_bounds.append(tuple([b+ip for b in bnd]))
+        # # attempt to call the interface and if it fails, bail out
+        qinterface = None
+        # try:
+        #     qinterface = QuantumImaging('./data/sampling_20241118.h5')
+        # except RuntimeError as e:
+        #     _LOG.error(f'Could not start interface: {e.args}')
+        #     sys.exit(1)
+        #
+        # # our initial starting parameters and bounds
+        # init_params = [-7e-4, -1.35e-4, -3.4e-5, 15.50]
+        # bounds = [[-1e-3, 1e-3], [-4e-5, 4e-5], [-4e-5, 4e-5], [-0.02, 0.02]]
+        # new_bounds = []
+        # for ip, bnd in zip(init_params, bounds):
+        #     new_bounds.append(tuple([b+ip for b in bnd]))
 
         # declare the manager to run the optimisation
-        manager = Manager(server)
-        optimisation_config = {'bound_restriction': '0.05',
-                               'initial_count': '100',
-                               'learner_number': '1',
-                               'halt_number': '10',
-                               'bounds': tuple(new_bounds),
-                               'interface': qinterface,
-                               'interface_args': {'scale': (3, 2),
-                                                  'init_params': init_params,
-                                                  'cost_definition': 'std',
-                                                  'fringe_steps': 1}
-                               }
-
+        manager = Manager(server, runtime_config=_CONFIG)
         # optimisation_config = {'bound_restriction': '0.05',
         #                        'initial_count': '100',
         #                        'learner_number': '1',
         #                        'halt_number': '10',
-        #                        'bounds': tuple([(-32, 32)]*5),
-        #                        'interface': TestInterface(),
-        #                        'interface_args': 'ackley'
+        #                        'bounds': tuple(new_bounds),
+        #                        'interface': qinterface,
+        #                        'interface_args': {'scale': (3, 2),
+        #                                           'init_params': init_params,
+        #                                           'cost_definition': 'std',
+        #                                           'fringe_steps': 1}
         #                        }
+
+        optimisation_config = {'bound_restriction': '0.01',
+                               'initial_count': '100',
+                               'learner_number': '5',
+                               'halt_number': '200',
+                               'bounds': tuple([(-32, 32)]*5),
+                               'interface': TestInterface(),
+                               'interface_args': 'ackley',
+                               'learner_min_tol': 1E-5
+                               }
         manager.initialise_optimisation(optimisation_config)
         manager.start_optimisation()
 
@@ -151,5 +167,14 @@ if __name__ == '__main__':
         # exit steps
         manager.close()
 
-        qinterface.shutdown()
+        if qinterface is not None:
+            qinterface.shutdown()
 
+    # -------------------------------------
+    # Shutdown
+    # -------------------------------------
+    # finally shutdown what we need to
+    try:
+        err_file.close()
+    except Exception as e:
+        _LOG.error(f'Failed to close stderr file: {e.args}')

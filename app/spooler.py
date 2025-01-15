@@ -193,9 +193,12 @@ class Spooler:
         self.learner_fifos[learner_id] = fifo
         self.learner_server.register_FIFO(learner_id, fifo)
 
-        # TODO - make this correct/replaceable
+        # pull in the pre- and post-amble and construct
+        pre_cmd = self._spooler_config['terminal_cmds'][0]
+        post_cmd = self._spooler_config['terminal_cmds'][1]
         if cmd is None:
-            cmd = f'gnome-terminal -- bash -c \"python main.py --learner -i {learner_id[-1]}; bash;\"'
+            cmd = f'python main.py --learner -i {learner_id[-1]}'
+        cmd = f'{pre_cmd}{cmd}{post_cmd}'
         Popen(shlex.split(cmd))
 
         # Start the configuration for this learner
@@ -216,7 +219,8 @@ class Spooler:
                         # dump the data dictionary and send it
                         dump_str = json.dumps({'n_inputs': len(self._spooler_config['bounds']),
                                                'bounds': self._spooler_config['bounds'],
-                                               'initial_count': self._spooler_config['initial_count']
+                                               'initial_count': self._spooler_config['initial_count'],
+                                               'learner_min_tol': self._spooler_config['learner_min_tol']
                                                })
                         self.learner_fifos[learner_id].send(dump_str)
                         config_sent = True
@@ -247,7 +251,7 @@ class Spooler:
 
         self.log.info('Starting sampling learner ... ')
         # start with the sampler
-        sampler_cmd = f'gnome-terminal -- bash -c \"python main.py --learner --sampler -i 1; bash;\"'
+        sampler_cmd = f'python main.py --learner --sampler -i 1'
         self._spawn_learner('SL1', cmd=sampler_cmd)
         self._configure_learner('SL1')
 

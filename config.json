@@ -5,5 +5,6 @@
   "tcp_port": 57821,
   "spooler_tcp_port": 57822,
   "model_epochs": 400,
-  "devices": ["thorlabs", "zaber", "xeryon", "jena", "tc038", "thorlabs_camera"]
+  "devices": ["thorlabs", "zaber", "xeryon", "jena", "tc038", "thorlabs_camera"],
+  "terminal_cmds": ["gnome-terminal -- bash -c \"", "; bash;\""]
 }

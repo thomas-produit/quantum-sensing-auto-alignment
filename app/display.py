@@ -3,6 +3,7 @@ from . import commands
 from queue import Queue, Empty
 from threading import Event, Thread, Lock
 import session
+import sys
 
 
 class MainDisplay:

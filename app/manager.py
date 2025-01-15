@@ -16,6 +16,8 @@ from time import sleep
 import numpy as np
 from datetime import datetime
 import os
+import scipy.cluster as scl
+from scipy.signal import savgol_filter
 
 # only import the graphical part if we can
 _GRAPHICAL = True
@@ -28,9 +30,15 @@ except ImportError as e:
 
 
 class Manager:
-    def __init__(self, server_instance):
+    def __init__(self, server_instance, runtime_config=None):
         # server used for communications
         self.server = server_instance
+
+        # config imported during the initial execution
+        if runtime_config is None:
+            self._runtime_config = {}
+        else:
+            self._runtime_config = runtime_config
 
         # define some FIFOs
         self.fifos = {'spooler': FIFO()}
@@ -90,6 +98,7 @@ class Manager:
         self._optimisation_config['learner_number'] = 3
         self._optimisation_config['halt_number'] = 500
         self._optimisation_config['bounds'] = []
+        self._optimisation_config['learner_min_tol'] = 1E-4
 
     def _initialise_connections(self):
         # start the server listening
@@ -119,7 +128,9 @@ class Manager:
                        'learner_number': self._optimisation_config['learner_number'],
                        'bounds': self._optimisation_config['bounds'],
                        'initial_count': self._optimisation_config['initial_count'],
-                       'data_dir': self._optimisation_config['data_dir']
+                       'data_dir': self._optimisation_config['data_dir'],
+                       'terminal_cmds': self._runtime_config.get('terminal_cmds', ['', '']),
+                       'learner_min_tol': self._optimisation_config['learner_min_tol']
                        }
         dict_string = json.dumps(config_dict)
         spooler_fifo.send(dict_string)
@@ -279,6 +290,48 @@ class Manager:
 
             self._memory['bounds'] = self._optimisation_config['bounds']
 
+            # expect to get a dict with keys: [costs, params], where costs is N*1 and params is N*K arrays.
+            pre_load_ok = True
+            if pre_load is not None:
+                if type(pre_load) is not dict:
+                    self.log.error('Pre-loaded data is of the wrong type.')
+                    pre_load_ok = False
+                else:
+                    costs = pre_load.get('costs', None)
+                    params = pre_load.get('params', None)
+
+                    if costs is None:
+                        self.log.error('No costs key located in the pre_load.')
+                        pre_load_ok = False
+                    elif params is None:
+                        self.log.error('No params key located in the pre_load.')
+                        pre_load_ok = False
+                    else:
+                        assert type(costs) is list, "Expected type list for the costs pre-load."
+                        assert type(params) is list, "Expected type list for the params pre-load."
+
+                        costs = np.array(costs)
+                        params = np.array(params)
+
+                        r, c = costs.shape
+                        rp, cp = params.shape
+                        if c != 1:
+                            self.log.error(f'Expected a vector for the costs not shape {(r, c)}')
+                            pre_load_ok = False
+                        if rp != r:
+                            self.log.error(f'Costs and params should have same length: ({r}, {rp}).')
+                            pre_load_ok = False
+                        if len(self._memory['bounds']) != cp:
+                            self.log.error(f'Params should have the same length as the bounds: {params.shape}')
+                            pre_load_ok = False
+
+                        if pre_load_ok:
+                            self.log.info('Loading the pre-load data.')
+                            for c in costs:
+                                self._memory['costs'].append(c)
+                            for p in params:
+                                self._memory['parameters'].append(list(p))
+
             # start the graphical interface if we need
             if self._memory.get('graphical', False):
                 self._graphical_proc.start()
@@ -286,10 +339,12 @@ class Manager:
                 min, max = list(zip(*self._memory['bounds']))
                 self._scale_func = lambda X: (np.array(X) - np.array(min)) / (np.array(max) - np.array(min))
 
+                # load the current values into the graphical proc
+                for cost, params in zip(self._memory['costs'], self._memory['parameters']):
+                    self._update_plot(params, cost)
+
             # start the connections
             self._initialise_connections()
-
-        # TODO - define the usage of pre_load
 
     def start_optimisation(self):
         if not self._memory['optimisation_ok']:
@@ -598,6 +653,7 @@ class Manager:
                 continue
 
             # bump the parameters if necessary
+            self._heuristic_tracker.update_costs_params(self._memory['costs'], self._memory['parameters'])
             next_params = self._heuristic_tracker.modify_parameters(next_params)
 
             # call the interface to test
@@ -624,10 +680,10 @@ class Manager:
 
                 # restrict the bounds to do a local search
                 if not bounds_restricted:
-                    self.log.info('Restricting bounds for local search.')
+                    self.log.info('Restricting bounds for local search.', extra={'colour': 2})
                     self._bound_restrict(send_fifo, recv_fifo, True, self._memory['best_parameters'])
                 else:
-                    self.log.info('Returning bounds for exploration.')
+                    self.log.info('Returning bounds for exploration.', extra={'colour': 2})
                     self._bound_restrict(send_fifo, recv_fifo, False, None)
 
                 # flip the boolean
@@ -643,6 +699,8 @@ class Manager:
             send_fifo.put(f'<SR:{lid}>')
 
         self.log.info('Finished Optimising',  extra={'colour': 4})
+        self.log.info(f"Best Cost: {self._memory['best_cost']}", extra={'colour': 4})
+        self.log.info(f"Best Params: {self._memory['best_parameters']}", extra={'colour': 4})
 
     def _update_plot(self, params, cost, update_best=False):
         # if we can plot, then plot
@@ -758,9 +816,23 @@ class HeuristicTracker:
         self.current_bumps = np.array([bp for bp in self.bump_starts])
 
         self.bump_incrementer = 0
+        self.bump_method = 0
         self.log = log
 
         self.runs_without_increase = 0
+
+        self.costs = None
+        self.params = None
+
+    def update_costs_params(self, costs, params):
+        """
+        Update the cost and parameter arrays, so we can use them in the bumping
+        :param costs:
+        :param params:
+        :return:
+        """
+        self.costs = np.array(costs)
+        self.params = np.array(params)
 
     def modify_parameters(self, next_params):
         next_params = np.array(next_params)
@@ -790,15 +862,74 @@ class HeuristicTracker:
             else:
                 self.bump_incrementer += 1
 
-            # Method 1: bump the parameters randomly
-            offset = self.spans * np.random.uniform(-0.1, 0.1, 1)
-            polarity_mask = np.random.randint(0, 2, self.num_params)
-            polarity_mask[polarity_mask == 0] = -1
+            if self.bump_method == 0:
+                # Method 1: bump the parameters randomly
+                offset = self.spans * np.random.uniform(-0.1, 0.1, 1)
+                polarity_mask = np.random.randint(0, 2, self.num_params)
+                polarity_mask[polarity_mask == 0] = -1
 
-            self.log.info(f'Applying bump: {self.current_bumps} - {offset}',  extra={'colour': 4})
-            next_params += np.multiply(polarity_mask, self.current_bumps + offset)
+                self.log.info(f'Applying bump: {self.current_bumps} - {offset}',  extra={'colour': 4})
+                next_params += np.multiply(polarity_mask, self.current_bumps + offset)
 
-            # TODO: Add other methods
+            elif self.bump_method == 1:
+                # Method 2: Cluster the elements
+                if self.costs is None or self.params is None or len(self.costs) < 10:
+                    # skip if we haven't defined these yet
+                    self.log.debug('Threshold or parameters not met for clustering.')
+                    return list(self.clip_next(next_params))
+
+                # sort all the elements and mask the top 30% of costs
+                csorted = sorted(self.costs)
+                cmax = csorted[len(self.costs) // 3]
+                self.log.debug(f'C_max for clusters: {cmax}')
+                mask = np.where(self.costs < cmax)
+
+                # cluster the masked parameters
+                clusters = scl.hierarchy.fclusterdata(self.params[mask], 0.75)
+                cluster_max = np.max(clusters)
+                self.log.debug(f'Cluster Max: {cluster_max}')
+
+                # get the top cluster and params
+                try:
+                    c, cl, p = zip(*sorted(zip(self.costs[mask], clusters, self.params), key=lambda x: x[0]))
+                    best_params = p[0]
+                    best_cluster = cl[0]
+
+                    cl_arr = np.array(cl)
+                    cl_mask = np.where(cl_arr != best_cluster)
+                    next_cluster_idx = np.random.randint(0, len(cl_arr[cl_mask]))
+                    next_cluster_params = np.array(p)[cl_mask][next_cluster_idx]
+
+                    direction = best_params - next_cluster_params
+                    next_params = best_params - (direction*self.current_bumps)
+                except Exception as err:
+                    self.log.error(f'Failed to cluster: {err.args}')
+
+                self.log.info(f'Applying cluster bump: {next_params}', extra={'colour': 4})
+
+            elif self.bump_method == 2:
+                # Method 3: Savgol Filter
+                window_length = min(40, len(self.params) // 2)
+                order = min(10, window_length - 1)
+
+                bumps = np.zeros(self.num_params)
+                for i in range(self.num_params):
+                    xs = self.params[:, 0]
+                    ys = self.costs[:]
+
+                    zipped = sorted(zip(xs, ys), key=lambda x: x[0])
+                    xs, ys = zip(*zipped)
+
+                    filtered = savgol_filter(ys, window_length, order, axis=0)
+                    bump = (next_params[i] - xs[np.argmin(filtered)])
+
+                    next_params[i] -= bump
+                    bumps[i] = bump
+
+                self.log.info(f'Applying SF bump: {next_params}', extra={'colour': 4})
+
+            # cycle the different types of bumps
+            self.bump_method = (self.bump_method + 1) % 3
 
         next_params = self.clip_next(next_params)
         return list(next_params)
@@ -821,7 +952,6 @@ class HeuristicTracker:
 
     def clip_next(self, next_params):
         for idx, ((bmin, bmax), param) in enumerate(zip(self.bounds, next_params)):
-            next_params[idx] = max(param, bmin)
-            next_params[idx] = min(param, bmax)
+            next_params[idx] = min(bmax, max(param, bmin))
 
         return next_params

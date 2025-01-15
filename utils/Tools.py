@@ -87,3 +87,24 @@ class LearnerState(int, Enum):
     PREDICT = 6
     PREDICTED = 7
     BUSY = 8
+
+
+class ErrorWrapper:
+    def __init__(self, base_obj, log):
+        self.base_obj = base_obj
+        self.log = log
+
+    # keep writing the std_error to the text file while managing the display
+    def check_write(self, text):
+        # filter the error string
+        filtered = text.strip('\n\t ')
+        if len(filtered) > 0:
+            self.log.error(filtered)
+        return self.base_obj.write(text)
+
+    # get the attribute and wrap the write function
+    def __getattr__(self, name):
+        if name == 'write':
+            return self.check_write
+        else:
+            return getattr(self.base_obj, name)
