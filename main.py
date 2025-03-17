@@ -109,7 +109,7 @@ if __name__ == '__main__':
         # declare the TCP server, the manager will start it
         server = TCP.Server(_CONFIG)
 
-        qinterface = QuantumImaging('./data/sampling_20241118.h5')
+        qinterface = QuantumImaging('./data/sampling_big_20241118.h5')
 
         init_params = [-7e-4, -1.35e-4, -3.4e-5, 15.50]
         bounds = [[-1e-3, 1e-3], [-4e-5, 4e-5], [-4e-5, 4e-5], [-0.02, 0.02]]
@@ -120,15 +120,16 @@ if __name__ == '__main__':
         # declare the manager to run the optimisation
         manager = Manager(server)
         optimisation_config = {'bound_restriction': '0.05',
-                               'initial_count': '100',
+                               'initial_count': '5000',
                                'learner_number': '1',
                                'halt_number': '10',
                                'bounds': tuple(new_bounds),
                                'interface': qinterface,
                                'interface_args': {'scale': (3, 2),
                                                   'init_params': init_params,
-                                                  'cost_definition': 'std',
-                                                  'fringe_steps': 1}
+                                                  'cost_definition': 'zernike',
+                                                  'fringe_steps': 1,
+                                                  'hack': 500}
                                }
 
         # optimisation_config = {'bound_restriction': '0.05',

@@ -87,7 +87,7 @@ class QuantumImaging(BaseInterface):
         self.log.info('Starting Camera ...')
 
         # Longitudinal
-        long_act = KDC101('/dev/ttyUSB8', 'longitudinal', tol=1e-4)
+        long_act = KDC101('/dev/ttyUSB3', 'longitudinal', tol=1e-4)
         long_act.initialise(config_dict={})
         self._actuators.append(long_act)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
@@ -233,6 +233,10 @@ class QuantumImaging(BaseInterface):
         fringe_steps = args.get('fringe_steps', 20)
         cost_definition = args.get('cost_definition', '')
 
+        # TODO: Sampling hack, remove
+        if self._counter % 2 == 0:
+            cost_definition = 'std'
+
         # ------------------------------
         # --- Data Acquisition
         # ------------------------------
@@ -281,6 +285,7 @@ class QuantumImaging(BaseInterface):
             # plot the various images
             self.plot_queue.put(('replace', {'y': np.clip(img_arr[0], 0, 400)}, 'fringe_img'))
             self.plot_queue.put(('replace', {'y': np.clip(self.dark_img, 0, 400)}, 'dark_img'))
+            self.plot_queue.put(('replace', {'y': img_arr[0] - self.dark_img}, 'sub_img'))
 
             self._counter += 1
 
@@ -289,7 +294,7 @@ class QuantumImaging(BaseInterface):
             elif cost_definition == 'std':
                 return self._cost_std(img_arr)
             elif cost_definition == 'zernike':
-                return self._cost_std(img_arr)
+                return self._cost_zernike(img_arr)
 
         # if we skip data, return None
         return None
@@ -370,7 +375,7 @@ class QuantumImaging(BaseInterface):
         cropped_imgs = img[:, ymin:ymax, xmin:xmax]
         cropped_dark_img = dark_img[ymin:ymax, xmin:xmax]
 
-        cost = - np.std(cropped_imgs[0] - cropped_dark_img)
+        cost = float(- np.std(cropped_imgs[0] - cropped_dark_img))
         return cost
 
     def _cost_zernike(self, img_in):
@@ -391,7 +396,7 @@ class QuantumImaging(BaseInterface):
         cropped_dark_img = dark_img[ymin:ymax, xmin:xmax]
 
         zdecomp = compute_zernike_decomposition(cropped_imgs[0], self.zernike_object)
-        cost = cost_evaluation(zdecomp)
+        cost = float(cost_evaluation(zdecomp))
         return cost
 
 def test():
