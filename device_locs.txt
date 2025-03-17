@@ -1,0 +1,1 @@
+{"longitudinal_4485": "ttyUSB6", "lateral_6514": "ttyUSB10", "sig_arm_horz_8632": "ttyUSB7", "sig_arm_vert_2363": "ttyUSB9", "z_coarse_zaber": "ttyUSB1", "z_fine_jena": "ttyUSB5"}
