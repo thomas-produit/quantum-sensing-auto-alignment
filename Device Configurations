@@ -3,4 +3,7 @@ dev/ttyUSB2,3,5 <- Thorlabs Kinesis:    5-longitudinal
 dev/ttyUSB0 <- Zaber (vertical)
 dev/ttyUSB4 <- Oven/tc038
 dev/ttyACM0 <- Xeryon
-dev/ttyUSB7 <- Jena 
+dev/ttyUSB7 <- Jena
+
+Device Password
+quantum123@

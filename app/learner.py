@@ -5,7 +5,7 @@ Date: 2024
 """
 from enum import Enum
 import session
-from utils.Tools import load_config, LearnerState
+from utils.tools import load_config, LearnerState
 import logging
 from comms.TCP import FIFO, ClientConnection
 from threading import Thread, Event
@@ -91,6 +91,9 @@ class BaseLearner:
         self.connection.comms_thread.start()
         self.comm_thread.start()
         self._state = LearnerState.INIT
+
+    def initialise(self):
+        pass
 
     def _read_json(self):
         """

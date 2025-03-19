@@ -8,7 +8,7 @@ import select
 import logging
 import session
 
-from utils import Tools
+from utils import tools
 from enum import Enum
 from threading import Thread, Event, Lock
 from queue import Queue, Empty
@@ -564,7 +564,7 @@ class Server:
 
 def _test_server():
     global _CONFIG
-    _CONFIG = Tools.load_config(logging.getLogger('TCP'))
+    _CONFIG = tools.load_config(logging.getLogger('TCP'))
 
     # create the server socket
     server = Server(_CONFIG)
@@ -577,7 +577,7 @@ def _test_server():
 
 def _test_client():
     global _CONFIG
-    _CONFIG = Tools.load_config(logging.getLogger('TCP'))
+    _CONFIG = tools.load_config(logging.getLogger('TCP'))
 
     # code to start the client connection
     fifo = FIFO()

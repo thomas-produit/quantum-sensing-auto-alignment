@@ -1,10 +1,12 @@
 """
-
+Main class for the spooler. The spooler is in charge of distributing learner processes for the manager class
+which run asynchronously. The Spooler starts a server for TCP communications so that it may be distributed to a high
+compute device.
 Author: Tranter Tech
 Date: 2024
 """
 from comms.TCP import ClientConnection, FIFO, Server
-from utils.Tools import load_config, LearnerState
+from utils.tools import load_config, LearnerState
 from threading import Thread, Event, Lock
 from queue import Empty
 from time import sleep
@@ -18,7 +20,16 @@ import shlex
 
 
 class Spooler:
+    """
+    Main class for the Spooler process. This class manages all the learner related objects and processes on behalf
+    of the manager. The spooler in this context acts as a slave to the manager process and simply receives instructions
+    via the spooler FIFO.
+    """
     def __init__(self):
+        """
+        Instantiates the spooler process. After construction the initialise_spooler function must still be called which
+        starts the relevant processes.
+        """
         self.log = logging.getLogger('Spooler')
         self.log.addHandler(session.display_log_handler)
         self.config = load_config(self.log)
@@ -52,7 +63,10 @@ class Spooler:
         self._memory_lock = Lock()
 
     def initialise_spooler(self):
-        # start all the threads and services
+        """
+        Start all the threads and services associated with the server including communications and logic cycles.
+        :return: None
+        """
         self.log.info('Initialising spooler ...')
         self.connection.comms_thread.start()
         self.learner_server.start_listening()
@@ -97,6 +111,11 @@ class Spooler:
         return True
 
     def _spooler_loop(self):
+        """
+        Main loop that facilitates the spooler operation. Data that is received instantiates and action which is defined
+        in the logic loop.
+        :return: None
+        """
         self.log.info('Starting spooler loop ...')
         while not self._halt_spooler.is_set():
             # attempt to read from fifo
@@ -142,6 +161,11 @@ class Spooler:
         self.log.info('Spooler exited.')
 
     def _update_params(self):
+        """
+        Updates the costs and parameters in the spooler memory, passed from the manager process. Locks are used for
+        thread safety.
+        :return: None
+        """
         self.connection_fifo.send('<UR>')
         data_dict = self._read_json()
 
@@ -153,6 +177,10 @@ class Spooler:
             self._memory_lock.release()
 
     def _update_bounds(self):
+        """
+        Update the bounds of the optimisation facilitated by logic in the manager process.
+        :return: None
+        """
         self.connection_fifo.send('<UR>')
         data_dict = self._read_json()
 
@@ -188,6 +216,12 @@ class Spooler:
         return data_dictionary
 
     def _spawn_learner(self, learner_id, cmd=None):
+        """
+        Spawn a learner process which facilitates the optimisation predictions. The learner is also configured on spawn.
+        :param learner_id: ID of the learner used for communication purposes.
+        :param cmd: Command string associated with starting the learner. If None, a default command is constructed.
+        :return: None
+        """
         # add all the relevant fifos
         fifo = FIFO()
         self.learner_fifos[learner_id] = fifo
@@ -205,6 +239,12 @@ class Spooler:
         self.learner_fifos[learner_id].send('<CONFIG>')
 
     def _configure_learner(self, learner_id):
+        """
+        Attempt to configure the learner with the ID learner_id. Information that is passed allows the learner to
+        construct the relevant architecture.
+        :param learner_id: ID of the learner to be configured.
+        :return: None
+        """
         self.log.info(f'Configuring learner [{learner_id}].')
         # attempt to configure each learner
         config_sent = False
@@ -243,6 +283,11 @@ class Spooler:
                     pass
 
     def _start_learners(self):
+        """
+        After the spooler has been started and configured, start all the learner processes. The manager is told when the
+        learners have been initialised.
+        :return: None
+        """
         # check we are ready
         if not self._spooler_configured:
             self.log.warning('Manager attempted to start learners before configuration.')
@@ -275,6 +320,12 @@ class Spooler:
         self.connection_fifo.send('<LI>')
 
     def _get_params(self, flag):
+        """
+        Get a set of parameters from the learner associated with a learner ID in the flag. The Learner is queried and
+        returns a set of parameters to be sent to the manager.
+        :param flag: Query flag of the form <GET:learner_ID>
+        :return: None
+        """
         flag_split = flag.split(':')
         if len(flag_split) < 2:
             self.log.error('No learner id found from flag.')
@@ -288,14 +339,20 @@ class Spooler:
 
         while not self._halt_spooler.is_set():
             try:
-                # acknowledge and send the
+                # acknowledge and send the data
                 data = self.learner_fifos[learner_id].read(block=True, timeout=0.1)
                 self.connection_fifo.send('<NP>' + data)
                 break
             except Empty:
                 pass
 
-    def _get_state(self, flag, return_state=False):
+    def _get_state(self, flag):
+        """
+        Gets the curretn state of a particular learner, i.e. whether it is training, minimising etc. This state is
+        returned to the manager process for logic loop purposes.
+        :param flag: Query flag of the form <QS:learner_ID>
+        :return: Returns the state provided by the learner.
+        """
         flag_split = flag.split(':')
         if len(flag_split) < 2:
             self.log.error('No learner id found from flag.')
@@ -311,15 +368,17 @@ class Spooler:
             try:
                 # acknowledge and send the
                 data = self.learner_fifos[learner_id].read(block=True, timeout=0.1)
-                if not return_state:
-                    self.connection_fifo.send('<QS>' + data)
-                    break
-                else:
-                    return data
+                self.connection_fifo.send('<QS>' + data)
+                return data
             except Empty:
                 pass
 
     def _set_ready(self, flag):
+        """
+        Set the learner state to ready, implying that the training loop can be started on the learner.
+        :param flag: Flag that specifies the learner to be set to ready <SR:learner_ID>.
+        :return: Boolean denoting whether the learner was set ready or not.
+        """
         flag_split = flag.split(':')
         if len(flag_split) < 2:
             self.log.error('No learner id found from flag.')
@@ -336,6 +395,13 @@ class Spooler:
             return True
 
     def _asynch_prediction(self):
+        """
+        The main loop for generating predictions asychronously. Each learner will cycle through a series of states which
+        correspond to training, minimising and predicting. When a learner is sitting in the prediction state, it is
+        ready to return a new parameter. A learner sitting in ready may transition into the train,min,pred loop. This
+        happens asynchronously from the manager process.
+        :return: None
+        """
         self.log.info('Kicking off asynchronous prediction cycle ... ')
         self._asynch_waiting.clear()
         while not self._halt_spooler.is_set():
@@ -402,6 +468,11 @@ class Spooler:
         self._asynch_waiting.set()  # set to allow saving afterwards
 
     def _save(self):
+        """
+        Facilitates the saving of the learners. The specifics of what is saved by each learner is dictated by that
+        learner, this method simply asks the learners to perform the save action.
+        :return: None
+        """
         self.connection_fifo.send('<SAVE>')
         self.log.info('Gathering data from learners ... ')
 
@@ -442,6 +513,10 @@ class Spooler:
         self._asynch_pause.clear()
 
     def close(self):
+        """
+        Graceful shutdown of the spooler process.
+        :return: None
+        """
         self.log.info('Shutting down spooler ...')
 
         # send the quit command to all learners

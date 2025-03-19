@@ -47,7 +47,11 @@ class TestInterface(BaseInterface):
 
     @staticmethod
     def ackley_func(chromosome):
-        """"""
+        """
+        Test function used for benchmarking the optimiser.
+        :param chromosome: List of parameters to be fed to the Ackley function.
+        :return: The cost associated with the supplied parameters.
+        """
         firstSum = 0.0
         secondSum = 0.0
         for c in chromosome:
@@ -398,6 +402,7 @@ class QuantumImaging(BaseInterface):
         zdecomp = compute_zernike_decomposition(cropped_imgs[0], self.zernike_object)
         cost = cost_evaluation(zdecomp)
         return cost
+
 
 def test():
     logging.basicConfig(level=logging.DEBUG,

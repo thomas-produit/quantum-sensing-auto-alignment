@@ -30,7 +30,7 @@ except ImportError as e:
 
 
 class Manager:
-    def __init__(self, server_instance, runtime_config=None):
+    def __init__(self, server_instance, runtime_config=None, run_graphical=True):
         # server used for communications
         self.server = server_instance
 
@@ -58,6 +58,10 @@ class Manager:
         # used to handle the final saving event
         self.save_event = Event()
 
+        # handle pausing of the manager run time
+        self.pause_event = Event()
+        self.paused = Event()
+
         # internal memory
         self._memory = {}
         self._optimisation_config = {}
@@ -68,8 +72,9 @@ class Manager:
 
         # graphical process to be used for plotting
         self._graphical_proc = None
+        self._memory['graphical'] = run_graphical
         self._plot_queue = MPQueue()
-        if _GRAPHICAL:
+        if run_graphical:
             self._graphical_proc = Process(target=RealTimePlot, args=(_DEFAULT_CONFIG, self._plot_queue))
             self._scale_func = None
 
@@ -90,7 +95,6 @@ class Manager:
         self._memory['best_parameters'] = []
         self._memory['best_cost'] = None
         self._memory['optimisation_ok'] = False
-        self._memory['graphical'] = _GRAPHICAL
 
         # static configurations for the optimisation (defaults) can be overridden by the user during the initialisation.
         self._optimisation_config['bound_restriction'] = 0.05
@@ -542,6 +546,19 @@ class Manager:
 
         self.log.debug('Updated spooler bounds.')
 
+    def _check_pause(self):
+        """
+        Check whether we need to be paused
+        :return:
+        """
+        paused = False
+        while self.pause_event.is_set():
+            if not paused:
+                paused = True
+                self.paused.set()
+                self.log.debug('Paused the manager.', extra={'colour': 3})
+            sleep(0.1)
+
     def _optimise(self):
         # communicate across comms
         _, send_fifo = self.threads['spooler']
@@ -560,6 +577,10 @@ class Manager:
         # do the sampling first
         # -----------------------------------------------
         for run in range(self._optimisation_config['initial_count']):
+            # pause if we need to and set the flag on the first iteration
+            self._check_pause()
+
+            # increment the run number
             self._memory['run_number'] = run + 1
 
             # request a parameter
@@ -629,6 +650,7 @@ class Manager:
         # Neural net time
         # -----------------------------------------------
         for run in range(start, max_runs):
+            self._check_pause()
             self._memory['run_number'] = run + 1
 
             # look for a response
@@ -747,6 +769,9 @@ class Manager:
         # clear the event so we can exit
         self.save_event.set()
 
+    def get_costs_params(self):
+        return self._memory['costs'], self._memory['parameters']
+
     def save(self):
         datetime_str = datetime.now().strftime('%Y%m%d_%H-%M-%S')
         save_loc = self._optimisation_config.get('data_dir', '/NOT_SPECIFIED/')
@@ -798,6 +823,7 @@ class Manager:
                 pass
 
         self.log.info('Process halted :)', extra={'colour': 4})
+
 
 class HeuristicTracker:
     def __init__(self, bounds, best_params, log):

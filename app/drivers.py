@@ -5,12 +5,13 @@ Date: 2024
 """
 import logging
 import session
-from utils.Tools import load_config
+from utils.tools import load_config
 from enum import Enum
 from threading import Thread, Event
 from queue import Queue, Full, Empty
 from time import sleep
 from PIL import Image
+from .display import ok_clr, fail_clr
 
 # get the logs
 _LOG = logging.getLogger('Drivers')
@@ -28,8 +29,6 @@ _CONFIG = load_config(_LOG)
 _DEVICE_LIST = [_.lower() for _ in _CONFIG.get('devices', [])]
 _DEVICE_FAILURES = ['' for _ in _DEVICE_LIST]
 
-ok_clr = lambda ret_str: '\033[32m' + ret_str + '\033[0m'
-fail_clr = lambda ret_str: '\033[93m' + ret_str + '\033[0m'
 
 # load in the devices we need to use
 for device_str in _DEVICE_LIST:
@@ -63,30 +62,51 @@ for device in _DEVICE_FAILURES:
 
 
 class BaseDriver:
+    """
+    Base class for the drivers used in the experimental setups. It is expected that many of the methods will be
+    overriden with this class mostly serving as a template for future drivers.
+    """
     def __init__(self):
         self._current_state = []
         self._error_queue = Queue()
 
     def set_parameters(self, X, asynch=True):
+        """
+        Given a set of parameters (generally 1-dimensional), facilitate the implementation of that parameter through
+        the driver.
+        :param X: The parameter to be implemented in the natural coordinate space of the driver.
+        :param asynch: Boolean for whether this option should be performed asynchronously or not.
+        :return: None
+        """
         pass
 
     def get_current_parameters(self):
+        """
+        Returns the current state associated with the device driven by this driver.
+        :return: Current state defined by the driver.
+        """
         return self._current_state
 
     def add_error(self, error_message, additional_info=None):
+        """
+        Queue an error to be consumed later.
+        :param error_message: The message associated with the error.
+        :param additional_info: Any information that is to be passed with the error.
+        :return: None
+        """
         self._error_queue.put((error_message, additional_info))
 
     def shutdown(self):
         """
         Any clean up operations that need to be performed on shutdown. This should be called on exit.
-        :return:
+        :return: None
         """
         pass
 
 
 class ActuatorAction(Enum):
     """
-    Enum for the actions an actuator can undertake
+    Enum for the actions an actuator can undertake. Currently supported are HOME, MOVE and STOP.
     """
     MOVE = 0
     HOME = 1
@@ -95,7 +115,7 @@ class ActuatorAction(Enum):
 
 class ActuatorState(Enum):
     """
-    Enum for the current state of the actuator
+    Enum for the current state of the actuator. Currently supported are READY and MOVING.
     """
     READY = 0
     MOVING = 1
@@ -140,14 +160,19 @@ class KDC101(BaseDriver):
         self._current_state = self._actuator.get_position()
 
     def get_position(self, query=True):
+        """
+        Return the position of the actuator according to the device and driver.
+        :param query: Determines whether the device should be queried.
+        :return: Current state of the actuator.
+        """
         if query:
             self._current_state = self._actuator.get_position()
         return self._current_state
 
     def wait_on_actuator(self):
         """
-        Wait for the actuator to finish moving
-        :return:
+        Wait for the actuator to finish moving by blocking until it has.
+        :return: Boolean indicating whether we had to wait at all.
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
@@ -230,7 +255,6 @@ class KDC101(BaseDriver):
         self.async_running.clear()
 
     def shutdown(self):
-        # TODO: Confirm shutdown proc
         self._actuator.close()
 
 
@@ -273,14 +297,19 @@ class K10CR(BaseDriver):
         self._current_state = self._actuator.get_position()
 
     def get_position(self, query=True):
+        """
+        Return the position of the actuator according to the device and driver.
+        :param query: Determines whether the device should be queried.
+        :return: Current state of the actuator.
+        """
         if query:
             self._current_state = self._actuator.get_position()
         return self._current_state
 
     def wait_on_actuator(self):
         """
-        Wait for the actuator to finish moving
-        :return:
+        Wait for the actuator to finish moving by blocking until it has.
+        :return: Boolean indicating whether we had to wait at all.
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
@@ -363,7 +392,6 @@ class K10CR(BaseDriver):
         self.async_running.clear()
 
     def shutdown(self):
-        # TODO: Confirm shutdown proc
         self._actuator.close()
 
 
@@ -394,7 +422,7 @@ class KIM101(BaseDriver):
         """
         Initialisation of the actuators that can be called by the interface/user
         :param config_dict: Configuration dictionary for initialising
-        :return:
+        :return: None
         """
         if config_dict.get('home', False):
             self.log.info('Beginning homing sequence.')
@@ -407,6 +435,11 @@ class KIM101(BaseDriver):
         self._current_state = self.get_position()
 
     def get_position(self, query=True):
+        """
+        Return the position of the actuator according to the device and driver.
+        :param query: Determines whether the device should be queried.
+        :return: Current state of the actuator.
+        """
         if query:
             channels = self._actuator.get_enabled_channels()
             self._current_state = [self._actuator.get_position(channel=c) for c in channels]
@@ -414,8 +447,8 @@ class KIM101(BaseDriver):
 
     def wait_on_actuator(self, axis=1):
         """
-        Wait for the actuator to finish moving
-        :return:
+        Wait for the actuator to finish moving by blocking until it has.
+        :return: Boolean indicating whether we had to wait at all.
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
@@ -502,7 +535,6 @@ class KIM101(BaseDriver):
         self.async_running.clear()
 
     def shutdown(self):
-        # TODO: Confirm shutdown proc
         self._actuator.close()
 
 
@@ -560,14 +592,19 @@ class ZaberDriver(BaseDriver):
             self.asynch_action(ActuatorAction.HOME)
 
     def get_position(self, query=True):
+        """
+        Return the position of the actuator according to the device and driver.
+        :param query: Determines whether the device should be queried.
+        :return: Current state of the actuator.
+        """
         if query:
             self._current_state = self._actuator.get_position(self.units)
         return self._current_state
     
     def wait_on_actuator(self):
         """
-        Wait for the actuator to finish moving
-        :return:
+        Wait for the actuator to finish moving by blocking until it has.
+        :return: Boolean indicating whether we had to wait at all.
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
@@ -679,14 +716,19 @@ class JenaDriver(BaseDriver):
         self._current_state = self.get_position()
 
     def get_position(self, query=True):
+        """
+        Return the position of the actuator according to the device and driver.
+        :param query: Determines whether the device should be queried.
+        :return: Current state of the actuator.
+        """
         if query:
             self._current_state = self._actuator.get_position()
         return self._current_state
     
     def wait_on_actuator(self):
         """
-        Wait for the actuator to finish moving
-        :return:
+        Wait for the actuator to finish moving by blocking until it has.
+        :return: Boolean indicating whether we had to wait at all.
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
@@ -772,7 +814,6 @@ class XeryonDriver(BaseDriver):
     """
     Class for controlling the Xeryon Precision Model XLS-1 (item 5)
     https://xeryon.com/software/
-
     Note: The controller manual specifies running in closed loop, so we assume that is the case
     for this application.
     """
@@ -800,6 +841,10 @@ class XeryonDriver(BaseDriver):
         self.verbose = True
 
     def initialise(self):
+        """
+        Initialises the actuator and sets the relevant units and speed of the actuator.
+        :return: None
+        """
         # start the controller
         self._controller.start()
 
@@ -812,8 +857,8 @@ class XeryonDriver(BaseDriver):
 
     def wait_on_actuator(self):
         """
-        Wait for the actuator to finish moving
-        :return:
+        Wait for the actuator to finish moving by blocking until it has.
+        :return: Boolean indicating whether we had to wait at all.
         """
         while not self._actuator_halt.is_set():
             # check if we are moving
@@ -889,6 +934,14 @@ class TC038Driver(BaseDriver):
     https://github.com/instrumentkit/InstrumentKit/blob/main/src/instruments/hcp/tc038.py
     """
     def __init__(self, address, poll_delay=3.0, observations_required=4):
+        """
+        Driver for the TC038 which sets up a polling delay and set of observations to determine whether the temperature
+        has satbilised.
+        :param address: Address of the temperature controller.
+        :param poll_delay: Delay between polling to allow stabilisation.
+        :param observations_required: Number of observations of a stable temperature required to determine that the
+        temperature is stable.
+        """
         super().__init__()
 
         self.tc = TC038.open_serial(address)
@@ -901,6 +954,12 @@ class TC038Driver(BaseDriver):
         self.log.addHandler(session.display_log_handler)
 
     def change_temp(self, temp, asynch=False):
+        """
+        Change the temperature set point.
+        :param temp: Temperature as a float in degrees C
+        :param asynch: Boolean to perform this action asynchronously or not.
+        :return: None.
+        """
         try:
             new_temp = float(temp)
             # clip the temperature
@@ -920,10 +979,18 @@ class TC038Driver(BaseDriver):
             self.log.error(f'Error converting temperature {temp} to a float.')
 
     def measure_temp(self):
+        """
+        Measure the temperature according to the controller
+        :return: Temperature in units of degrees C
+        """
         # get the temperature
         return split_unit_str(self.tc.temperature)[0]
     
     def _monitor_temp(self):
+        """
+        Monitor whether the target temperature has been reached or not.
+        :return: None
+        """
         temp_reached = False
         observed = 0
         while not temp_reached:
@@ -947,7 +1014,15 @@ class TC038Driver(BaseDriver):
 
 
 class CameraDriver(BaseDriver):
+    """
+    Driver for the Thorlabs camera, used in the quantum imagin experiment as the main measurement.
+    """
     def __init__(self, camera_settings=None, image_settings=None):
+        """
+        Constructor for the camera driver which brings in a number of camera settings and image settings.
+        :param camera_settings: Camera settings, currently supports the exposure time setting in microseconds.
+        :param image_settings: Image settings used in processing. Current supports setting an ROI, gain and bit_shift
+        """
         super().__init__()
         self.log = logging.getLogger('Camera')
         self.camera = None
@@ -975,6 +1050,11 @@ class CameraDriver(BaseDriver):
         self.return_as_numpy_array = False
 
     def initialise(self):
+        """
+        Initialise the camera. This must be called at least once per instantiation of the camera driver to ensure
+        communication occurs.
+        :return: None
+        """
         self.sdk = TLCameraSDK()
         camera_list = self.sdk.discover_available_cameras()
 
@@ -994,10 +1074,19 @@ class CameraDriver(BaseDriver):
         self.camera.image_poll_timeout_ms = 0
 
     def start_acquisition(self):
+        """
+        Main entry point for starting the acquisition thread.
+        :return: None
+        """
         # run the acquistion thread
         self.acquisition_thread.start()
 
     def _get_image(self, frame):
+        """
+        Process a frame from the camera and return an image. Adapted from the Thorlabs example and Thomas' code.
+        :param frame: Frame object as passed from the Thorlabs camera driver.
+        :return: Image as an array.
+        """
         if not(self.return_as_numpy_array):
             # no coloring, just scale down image to 8 bpp and place into PIL Image object
             scaled_image = (frame.image_buffer >> (self._bit_depth - self.bit_shift)) * self.gain
@@ -1018,6 +1107,10 @@ class CameraDriver(BaseDriver):
             return np.copy(scaled_image)
 
     def _acquisition_loop(self):
+        """
+        Main acquisition loop in charge of getting frames from the camera adding them to the queue.
+        :return: None
+        """
         while not self._halt_acq.is_set():
             try:
                 frame = self.camera.get_pending_frame_or_null()
@@ -1034,6 +1127,12 @@ class CameraDriver(BaseDriver):
         self.log.info('Image acquisition halted.')
 
     def get_image(self, timeout=None):
+        """
+        Return an image when asked. Frames are discarded normally by the camera until this method is called.
+        :param timeout: How long to wait in seconds when asking for a frame. None by default blocks until a frame is
+        returned.
+        :return: An image array.
+        """
         # flag that we want an image
         self._acquire_img.set()
 

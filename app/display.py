@@ -3,10 +3,15 @@ from . import commands
 from queue import Queue, Empty
 from threading import Event, Thread, Lock
 import session
-import sys
 
+ok_clr = lambda ret_str: '\033[32m' + ret_str + '\033[0m'
+fail_clr = lambda ret_str: '\033[93m' + ret_str + '\033[0m'
 
 class MainDisplay:
+    """
+    Main display class which is used by the manager to run an interactive session. The display is threaded so that
+    commands can be run separate of the main processes.
+    """
     def __init__(self):
         self.input_queue = Queue()
         self.command_parser_halt = Event()
@@ -28,10 +33,19 @@ class MainDisplay:
 
     # target for an external thread
     def start_display(self):
+        """
+        Start the curses display by instantiating the main loop. This should be the main entry point for the display.
+        :return: None
+        """
         curses.wrapper(self.main_display_loop)
 
     @staticmethod
     def build_window(stdscr):
+        """
+        Static method which builds the curses window for displaying.
+        :param stdscr: Screen object passed from the curses library.
+        :return: None
+        """
         # clear the screen
         stdscr.clear()
 
@@ -42,9 +56,15 @@ class MainDisplay:
         stdscr.addstr('>')
 
     def refresh_output(self, stdscr):
+        """
+        Refresh the screen output according to the internal buffer and cursor position.
+        :param stdscr: Standard screen element passed from curses.
+        :return: None
+        """
         # get the terminal size
         lines, cols = stdscr.getmaxyx()
         lines -= 2  # account for the bottom bit
+        session.display_width = cols
 
         # handle no colours
         if self.output_colour_buffer is None:
@@ -75,6 +95,12 @@ class MainDisplay:
         return [stdscr.getmaxyx()[0] - 1, len(input_text) + 1]
 
     def main_display_loop(self, stdscr):
+        """
+        Main display loop which is instantiated by the start_display method. This method is in charge of hadnling the
+        buffer, key presses and other user interactions. Additionally, the command thread is instantiated here.
+        :param stdscr: Standard screen element passed from curses.
+        :return: None
+        """
         # start the cmd thread
         self.cmd_thread.start()
 
@@ -174,7 +200,7 @@ class MainDisplay:
         :param text: text to be added
         :param colour: colour pair, default=0
         :param mode: mode to use, default='w' for appending to the list, 'a' to add to the last line
-        :return:
+        :return: None
         """
         if mode == 'w':
             self.output_buffer.append(text)
@@ -186,21 +212,22 @@ class MainDisplay:
                 self.output_colour_buffer[-1] = colour
 
     def halt(self):
+        """
+        Halt the display in a thread safe manner.
+        :return: None
+        """
         self.command_parser_halt.set()
         self.cmd_thread.join()
 
-        # self.session.get_lock()
-        # for event in self.session.halt_events:
-        #     event.set()
-        # self.session.release_lock()
-        #
-        # for thread in self.session.halt_procs:
-        #     try:
-        #         thread.join()
-        #     except:
-        #         pass
-
     def external_log(self, text, colour=1, mode='w'):
+        """
+        Main handler for connecting logging events to the displays internal buffer. Upon receiving a log event the
+        screen is refreshed so as to display the log.
+        :param text: text to be added
+        :param colour: colour pair, default=0
+        :param mode: mode to use, default='w' for appending to the list, 'a' to add to the last line
+        :return: None
+        """
         self.add_to_output(text, colour, mode)
         self.refresh_output_event.set()
 
@@ -239,11 +266,11 @@ class MainDisplay:
                     cmd_class = obj(self.session)
                     while cmd_class.state is not commands.state.FINISHED:
                         cmd_class.run(self.input_queue)
-                        log_data, log_modes = cmd_class.get_log_data()
+                        log_data, log_modes, log_colour = cmd_class.get_log_data()
 
                         # get back the log data from the command running
-                        for line, mode in zip(log_data, log_modes):
-                            self.add_to_output(line, 1, mode=mode)
+                        for line, mode, colour in zip(log_data, log_modes, log_colour):
+                            self.add_to_output(line, colour=colour, mode=mode)
                         self.refresh_output_event.set()
 
                     self.add_to_output('<<<< ---- >>>>', 1)
