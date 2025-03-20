@@ -1,15 +1,19 @@
 """
-
+Main entry point for the interfaces that deal with the experiment. Logic for interacting with physical hardware outside
+of driver implementations should be located here. An interface should be defined on an experiment by experiment basis
+allowing the flexibility of the ML optimiser to be applied with instantiation of that particular interface.
 Author: Tranter Tech
 Date: 2024
 """
+
 import numpy as np
-from app.drivers import KDC101, KIM101, K10CR, JenaDriver, ZaberDriver, CameraDriver
+from app.drivers import KDC101, KIM101, K10CR, JenaDriver, ZaberDriver, CameraDriver, _DEVICE_KEYS
 import logging
 import session
 from time import sleep
 import h5py
 from datetime import datetime
+from subprocess import run as cmd_run
 
 
 class BaseInterface:
@@ -89,6 +93,30 @@ class QuantumImaging(BaseInterface):
         self.zernike_object = None
 
     def run_initialisation(self, args=None):
+        """
+        Runs the interface initialisation. This is called by the manager during start up with relevant arguments passed
+        by the manager. If this method fails the interface will not be initialised and the optimisation will halt.
+        :param args: Arguments that may be passed by the manager from the users initial configuration of the
+        optimisation. There is no specified form as the user is responsible for these.
+        :return: Boolean denoting the success of the interface initialisation.
+        """
+        device_dict, missing_devices = self._get_device_ports()
+        if device_dict is None:
+            self.log.error('Could not start interface as devices were not located.')
+            return False
+
+        # if there are specific actuators that should not be missing before startup, fail here
+        deal_breaker_devs = ['longitudinal', 'sig_arm_horz', 'sig_arm_vert', 'z_coarse', 'z_fine']
+        devices_missing = False
+        for dev in deal_breaker_devs:
+            if dev in missing_devices:
+                self.log.error(f'Critical device [{dev}] missing.')
+                devices_missing = True
+
+        if devices_missing:
+            self.log.error('Critical devices are missing, halting operation.')
+            return False
+
         # Camera init
         self._camera = CameraDriver()
         self._camera.initialise()
@@ -96,13 +124,13 @@ class QuantumImaging(BaseInterface):
         self.log.info('Starting Camera ...')
 
         # Longitudinal
-        long_act = KDC101('/dev/ttyUSB8', 'longitudinal', tol=1e-4)
+        long_act = KDC101(device_dict['longitudinal'], 'longitudinal', tol=1e-4)
         long_act.initialise(config_dict={})
         self._actuators.append(long_act)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # lateral
-        lat_act = KDC101('/dev/ttyUSB7', 'lateral')
+        lat_act = KDC101(device_dict['lateral'], 'lateral')
         lat_act.initialise(config_dict={})
         self._actuators.append(lat_act)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
@@ -114,37 +142,37 @@ class QuantumImaging(BaseInterface):
         # self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # signal arm, horizontal
-        sig_arm_horz = KDC101('/dev/ttyUSB4', 'sig_arm_horz', tol=1e-4)
+        sig_arm_horz = KDC101(device_dict['sig_arm_horz'], 'sig_arm_horz', tol=1e-4)
         sig_arm_horz.initialise(config_dict={})
         self._actuators.append(sig_arm_horz)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # signal arm, vertical
-        sig_arm_vert = KDC101('/dev/ttyUSB6', 'sig_arm_vert', tol=1e-4)
+        sig_arm_vert = KDC101(device_dict['sig_arm_vert'], 'sig_arm_vert', tol=1e-4)
         sig_arm_vert.initialise(config_dict={})
         self._actuators.append(sig_arm_vert)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # idler shutter
-        idler_shut = KDC101('/dev/ttyUSB5', 'idler_shutter', tol=1e-4)
+        idler_shut = KDC101(device_dict['idler_shutter'], 'idler_shutter', tol=1e-4)
         idler_shut.initialise(config_dict={})
         self._actuators.append(idler_shut)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # z coarse (Zaber)
-        z_coarse = ZaberDriver('/dev/ttyUSB0', 'z_coarse')
+        z_coarse = ZaberDriver(device_dict['z_coarse'], 'z_coarse')
         z_coarse.initialise(config_dict={})
         self._actuators.append(z_coarse)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # z fine (Jena)
-        z_fine = JenaDriver('/dev/ttyUSB2', 'z_fine')
+        z_fine = JenaDriver(device_dict['z_fine'], 'z_fine')
         z_fine.initialise(config_dict={})
         self._actuators.append(z_fine)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
 
         # HWP - intensity
-        hwp = K10CR('/dev/ttyUSB1', 'HWP')
+        hwp = K10CR(device_dict['HWP'], 'HWP')
         hwp.initialise(config_dict={})
         self._actuators.append(hwp)
         self.log.info(f'Starting {self._actuators[-1].ID} ...')
@@ -154,8 +182,6 @@ class QuantumImaging(BaseInterface):
         # qwp.initialise(config_dict={})
         # self._actuators.append(qwp)
         # self.log.info(f'Starting {self._actuators[-1].ID} ...')
-
-        # /USB3/ <- Temp control
 
         # compile them into a handy dictionary
         for actu in self._actuators:
@@ -176,6 +202,26 @@ class QuantumImaging(BaseInterface):
                                                        'fringe_steps': 0})
 
         return True
+
+    def _get_device_ports(self):
+        """
+        Return the device ports for all the devices that are needed for the interface.
+        :return: Tuple -> dictionary containing the link between the interface key and the serial key, None if it fails.
+        Additionally returns a list of missing devices.
+        """
+        cmd = cmd_run(['ls', '-la', '/dev/serial/by-id/'], capture_output=True)
+        missing_devices = []
+
+        if cmd.stderr != b'':
+            self.log.error(f"Could not run the device list command with the following error: "
+                           f"{cmd.stderr.decode('UTF-8')}")
+            return None, missing_devices
+
+        device_dict = {}
+        # --- CODE FOR IDENTIFYING THE DEVICES FROM THE STRINGS
+
+        return device_dict, missing_devices
+
 
     def _start_zernike(self):
         # radial order that we will fit to

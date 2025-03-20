@@ -1,5 +1,6 @@
 """
-
+Graphical display for the optimisation code which provides feedback to the user about what is going on during the
+optimisation. The plotting is based on pyqtgraph which provides a quick implmentation for real-ish time plotting.
 Author: Tranter Tech
 Date: 2024
 """
@@ -23,7 +24,23 @@ _DEFAULT_CONFIG = [{'fringe_img': {'type': 'image', 'title': 'Raw Fringe', 'span
 
 
 class RealTimePlot:
+    """
+    Main class for holding the plotting code. This class instantiates the QT window and the plotting structures that are
+    needed to display the graphs. The configuration of the window is constructed via a configuration list with a default
+    config provided in the graphical.py file root.
+    """
     def __init__(self, format_dict, queue, refresh_wait=50, title='Real time plot', scale=1.0):
+        """
+        Construction of the plotting window. The plotting occurs asynchronously and so uses queues to facilitate
+        communication to the plotting thread.
+        :param format_dict: List which gives the window layout configuration. The form of this list is a list of
+        dictionaries, where each dict correspond to a row with the dict keys as columns. A column entry should consist
+        of a dict with the entries 'entry_key':{'type': 'image | plot', 'title': 'title_str', 'span': column_span_int }.
+        :param queue: A queue object provided to the plot from the manager to facilitate plotting.
+        :param refresh_wait: How long to wait between refresh operations in ms.
+        :param title: Plotting window title.
+        :param scale: Scale parameter for the window size.
+        """
         # # the plotting process
         self.plot_proc = Process(target=self.start, args=())
 
@@ -84,13 +101,19 @@ class RealTimePlot:
         self.start()
 
     def start(self):
+        """
+        Start the plotting window operation by displaying the window and executing the loop.
+        :return: None
+        """
         self.win.show()
         pg.exec()
 
-    def run(self):
-        self.plot_proc.start()
-
     def get_update(self):
+        """
+        Method which is constantly called to get new plotting information from the queue. This runs asycnhronously in
+        the plotting class.
+        :return: None
+        """
         try:
             # get the new data and concatenate it
             mode, data_dict, plot = self.data_queue.get(False)
@@ -158,6 +181,10 @@ class RealTimePlot:
             pass
 
     def get_queue(self):
+        """
+        Get the data queue which is currently being used by the plotting window.
+        :return: Data queue
+        """
         return self.data_queue
 
 

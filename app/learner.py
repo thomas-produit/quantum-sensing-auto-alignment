@@ -22,10 +22,14 @@ import scipy.optimize as so
 
 class BaseLearner:
     """
-    Base learner class that other learners inherit.
+    Base learner class that other learners inherit. Sets up the expected structures that the spooler will use.
+    Communications are facilitated by the FIFO classes which interact with the spooler server.
     """
-
     def __init__(self, learner_id):
+        """
+        Construct a learner structure with a learner_id which can be called by the spooler and used by the manager.
+        :param learner_id: unique ID of the learner.
+        """
         self.id = learner_id
         self._memory = {'costs': [], 'parameters': []}
         self._state = LearnerState.PRE_INIT
@@ -58,7 +62,6 @@ class BaseLearner:
         self._register_command('<READY>', self.ready)
         self._register_command('<SAVE>', self.get_model_params)
 
-
     def _register_command(self, cmd_flag, function):
         """
         Register a command and function call for the comms cycle.
@@ -69,6 +72,11 @@ class BaseLearner:
         self._commands[cmd_flag.lower()] = function
 
     def _comm_cycle(self):
+        """
+        Main communications loop for receiving instructions from the spooler process. The learner acts as a slave to the
+        spooler process and so expects to be told what to do.
+        :return: None
+        """
         while not self.learner_halt.is_set():
 
             # attempt to read from fifo
@@ -88,16 +96,24 @@ class BaseLearner:
         self.log.info(f'Learner {self.id} exited.')
 
     def _initialise(self):
+        """
+        Start the processes relevant to the learner, including the communications and setting the state to initialised.
+        :return: None.
+        """
         self.connection.comms_thread.start()
         self.comm_thread.start()
         self._state = LearnerState.INIT
 
     def initialise(self):
+        """
+        Method to be overriden which provides class specific initialisation of the learner.
+        :return: None
+        """
         pass
 
     def _read_json(self):
         """
-        Read a JSON dictionary from the output
+        Read a JSON dictionary from the output and return a dict object.
         :return: Data dictionary
         """
         # keep track of how many times we fail
@@ -124,6 +140,11 @@ class BaseLearner:
         return data_dictionary
 
     def _update_values(self):
+        """
+        Update vales of the learner according to information received from the spooler such as parameters, costs and
+        bounds.
+        :return: Boolean as to whether this operation succeeded.
+        """
         # let the spooler we're ready to update the values
         self.connection_fifo.send('<CA>')
 
@@ -149,15 +170,23 @@ class BaseLearner:
 
     def _get_state(self):
         """
-        Return the current state of the learner across the connection
+        Return the current state of the learner across the connection.
         :return: None
         """
         self.connection_fifo.send(json.dumps(self._state))
 
     def _get_next_parameters(self):
+        """
+        Send the current next parameters across the connection.
+        :return: None
+        """
         self.connection_fifo.send(json.dumps({'params': None}))
 
     def _get_config(self):
+        """
+        Receive and implement the config from the spooler for this learner instance.
+        :return: None.
+        """
         self.connection_fifo.send('<CA>')
         data_dict = self._read_json()
         self.log.debug(f'Config received: {data_dict}')
@@ -175,11 +204,16 @@ class BaseLearner:
         """
         Construct the model parameters to be returned to the spooler. Needs to return a serialised string for
         transmission.
-        :return:
+        :return: None.
         """
         self.connection_fifo.send(json.dumps({'data': None}))
 
     def train(self):
+        """
+        Method to be overriden which trains the learner. If the learner does not require training as such then this
+        method will be passed through.
+        :return:
+        """
         pass
 
     def minimise(self):

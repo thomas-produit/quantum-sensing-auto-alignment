@@ -28,7 +28,7 @@ numba_logger.setLevel(logging.WARNING)
 _CONFIG = load_config(_LOG)
 _DEVICE_LIST = [_.lower() for _ in _CONFIG.get('devices', [])]
 _DEVICE_FAILURES = ['' for _ in _DEVICE_LIST]
-
+_DEVICE_KEYS = _CONFIG.get('device_keys', None)
 
 # load in the devices we need to use
 for device_str in _DEVICE_LIST:
